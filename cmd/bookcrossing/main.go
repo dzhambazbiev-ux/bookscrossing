@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/dasler-fw/bookcrossing/internal/config"
+	"github.com/dasler-fw/bookcrossing/internal/models"
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,7 +16,13 @@ func main() {
 
 	db := config.Connect(log)
 
-	if err := db.AutoMigrate(); err != nil {
+	if err := db.AutoMigrate(
+		&models.User{},
+		&models.Book{},
+		&models.Genre{},
+		&models.Exchange{},
+		&models.Review{},
+	); err != nil {
 		log.Error("failed to migrate database", "error", err)
 		os.Exit(1)
 	}
