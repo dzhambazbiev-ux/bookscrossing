@@ -51,12 +51,8 @@ func (r *reviewRepository) Delete(id uint) error {
 		r.log.Error("error in Delete review")
 		return errors.New("error delete review")
 	}
-	return nil
-		r.log.Error("error in Create function review_repository.go")
-		return errors.New("error create category in db")
-	}
 
-	return r.db.Create(req).Error
+	return nil
 }
 
 func (r *reviewRepository) GetByTargetUserID(id uint) ([]models.Review, error) {

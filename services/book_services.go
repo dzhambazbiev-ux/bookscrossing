@@ -96,21 +96,10 @@ func (s *bookService) Update(bookID uint, userID uint, req dto.UpdateBookRequest
 		return nil, errors.New("только владелец может редактировать книгу")
 	}
 
-	if req.Title != nil {
-		book.Title = *req.Title
-	}
-	if req.Description != nil {
-		book.Description = *req.Description
-	}
-	if req.AISummary != nil {
-		book.AISummary = *req.AISummary
-	}
+    if req.Description != nil {
+        book.Description = *req.Description
+    }
 
-	if len(req.GenreIDs) > 0 {
-		if err := s.bookRepo.AttachGenres(book.ID, req.GenreIDs); err != nil {
-			return nil, err
-		}
-	}
 
 	if err := s.bookRepo.Update(book); err != nil {
 		return nil, err

@@ -59,11 +59,11 @@ func (s *reviewService) Create(authorID uint, req dto.CreateReviewRequest) error
 }
 
 func (s *reviewService) GetByUserID(userID uint) ([]models.Review, error) {
-	return s.repo.GetByUserID(userID)
+	return s.repo.GetByTargetUserID(userID)
 }
 
 func (s *reviewService) GetByBookID(bookID uint) ([]models.Review, error) {
-	return s.repo.GetByBookID(bookID)
+	return s.repo.GetByTargetBookID(bookID)
 }
 
 func (s *reviewService) Delete(reviewID uint, authorID uint) error {
