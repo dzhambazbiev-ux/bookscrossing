@@ -1,8 +1,6 @@
 package models
 
 import (
-	"time"
-
 	"gorm.io/gorm"
 )
 
@@ -13,7 +11,6 @@ type Review struct {
 	TargetBookID uint `json:"target_book_id"`
 	Text         string
 	Rating       int
-	CreatedAt    time.Time
 
 	Author     *User `gorm:"foreignKey:AuthorID"`
 	TargetUser *User `gorm:"foreignKey:TargetUserID"`
