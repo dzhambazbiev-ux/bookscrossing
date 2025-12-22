@@ -1,8 +1,6 @@
 package models
 
 import (
-	"time"
-
 	"gorm.io/gorm"
 )
 
@@ -13,5 +11,4 @@ type User struct {
 	PasswordHash string
 	City         string
 	Address      string
-	RegisteredAt time.Time
 }
