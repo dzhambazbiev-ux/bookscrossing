@@ -1,12 +1,12 @@
 package dto
 
 type CreateBookRequest struct {
-	Title       string
-	Author      string
-	Description string
-	AISummary   string
+	Title       string `json:"title"`
+	Author      string `json:"author"`
+	Description string `json:"description"`
+	AISummary   string `json:"aisummary"`
 }
 
 type UpdateBookRequest struct {
-	Description *string
+	Description *string `json:"description"`
 }

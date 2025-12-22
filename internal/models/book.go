@@ -4,13 +4,13 @@ import "gorm.io/gorm"
 
 type Book struct {
 	gorm.Model
-	Title       string
-	Author      string
-	Description string
-	AISummary   string
-	Status      string
-	UserID      uint
+	Title       string `json:"title"`
+	Author      string `json:"author"`
+	Description string `json:"description"`
+	AISummary   string `json:"aisummary"`
+	Status      string `json:"status"`
+	UserID      uint   `json:"user_id"`
 
-	User   *User   `gorm:"foreignKey:UserID"`
-	Genres []Genre `gorm:"many2many:book_genres"`
+	User   *User   `json:"user" gorm:"foreignKey:UserID"`
+	Genres []Genre `json:"genres" gorm:"many2many:book_genres"`
 }

@@ -4,6 +4,6 @@ import "gorm.io/gorm"
 
 type Genre struct {
 	gorm.Model
-	Name  string
-	Books []Book `gorm:"many2many:book_genres"`
+	Name  string `json:"name"`
+	Books []Book `json:"book" gorm:"many2many:book_genres"`
 }

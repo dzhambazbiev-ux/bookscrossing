@@ -8,17 +8,17 @@ import (
 
 type Exchange struct {
 	gorm.Model
-	InitiatorID     uint
-	RecipientID     uint
-	InitiatorBookID uint
-	RecipientBookID uint
-	Status          string
-	CreatedAt       time.Time
-	CompletedAt     *time.Time
+	InitiatorID     uint       `json:"initiator_id"`
+	RecipientID     uint       `json:"recipient_id"`
+	InitiatorBookID uint       `json:"initiator_book_id"`
+	RecipientBookID uint       `json:"recipient_book_id"`
+	Status          string     `json:"status"`
+	CreatedAt       time.Time  `json:"created_at"`
+	CompletedAt     *time.Time `json:"completed_at"`
 
-	Initiator *User `gorm:"foreignKey:InitiatorID"`
-	Recipient *User `gorm:"foreignKey:RecipientID"`
+	Initiator *User `json:"initiator" gorm:"foreignKey:InitiatorID"`
+	Recipient *User `json:"recipient" gorm:"foreignKey:RecipientID"`
 
-	InitiatorBook *Book `gorm:"foreignKey:InitiatorBookID"`
-	RecipientBook *Book `gorm:"foreignKey:RecipientBookID"`
+	InitiatorBook *Book `json:"initiator_book" gorm:"foreignKey:InitiatorBookID"`
+	RecipientBook *Book `json:"recipient_book" gorm:"foreignKey:RecipientBookID"`
 }
