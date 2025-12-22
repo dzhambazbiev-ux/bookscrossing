@@ -1,6 +1,7 @@
 package dto
 
 type CreateBookRequest struct {
+
 	Title       string   `json:"title"`
 	Author      string   `json:"author"`
 	Description string   `json:"description"`
@@ -10,9 +11,5 @@ type CreateBookRequest struct {
 
 
 type UpdateBookRequest struct {
-	Title       *string  `json:"title,omitempty"`
-	Author      *string  `json:"author,omitempty"`
-	Description *string  `json:"description,omitempty"`
-	AISummary   *string  `json:"ai_summary,omitempty"`
-	GenreIDs    []uint   `json:"genre_ids,omitempty"` // можно менять жанры
+	Description *string `json:"description"`
 }
