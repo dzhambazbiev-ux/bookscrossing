@@ -17,6 +17,7 @@ type BookRepository interface {
 	Update(book *models.Book) error
 	Delete(id uint) error
 	Search(query dto.BookListQuery) ([]models.Book, int64, error)
+	AttachGenres(bookID uint, genreIDs []uint) error
 }
 
 type bookRepository struct {
@@ -42,7 +43,7 @@ func (r *bookRepository) Create(req *models.Book) error {
 
 func (r *bookRepository) GetByID(id uint) (*models.Book, error) {
 	var book models.Book
-	if err := r.db.Preload("Genres").First(&book, id).Error; err != nil {
+	if err := r.db.Preload("Genres").Preload("User").First(&book, id).Error; err != nil {
 		r.log.Error("error in Delete function book_repository.go")
 		return nil, errors.New("error delete in db")
 	}
@@ -163,4 +164,23 @@ func (r *bookRepository) Search(query dto.BookListQuery) ([]models.Book, int64, 
 	}
 
 	return books, total, nil
+}
+
+func (r *bookRepository) AttachGenres(bookID uint, genreIDs []uint) error {
+	var book models.Book
+	if err := r.db.First(&book, bookID).Error; err != nil {
+		return err
+	}
+
+	var genres []models.Genre
+	if err := r.db.Where("id IN ?", genreIDs).Find(&genres).Error; err != nil {
+		return err
+	}
+
+	// Привязываем жанры к книге
+	if err := r.db.Model(&book).Association("Genres").Replace(genres); err != nil {
+		return err
+	}
+
+	return nil
 }
