@@ -13,7 +13,6 @@ type Exchange struct {
 	InitiatorBookID uint
 	RecipientBookID uint
 	Status          string
-	CreatedAt       time.Time
 	CompletedAt     *time.Time
 
 	Initiator *User `gorm:"foreignKey:InitiatorID"`
