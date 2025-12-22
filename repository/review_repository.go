@@ -11,9 +11,9 @@ import (
 type ReviewRepository interface {
 	Create(req *models.Review) error
 	GetByID(id uint) (*models.Review, error)
-	GetByUserID(userID uint) ([]models.Review, error)
-	GetByBookID(bookID uint) ([]models.Review, error)
 	Delete(id uint) error
+	GetByTargetUserID(id uint) ([]models.Review, error)
+	GetByTargetBookID(id uint) ([]models.Review, error)
 }
 
 type reviewRepository struct {
@@ -22,7 +22,10 @@ type reviewRepository struct {
 }
 
 func NewReviewRepository(db *gorm.DB, log *slog.Logger) ReviewRepository {
-	return &reviewRepository{db: db, log: log}
+	return &reviewRepository{
+		db:  db,
+		log: log,
+	}
 }
 
 func (r *reviewRepository) Create(req *models.Review) error {
@@ -43,39 +46,41 @@ func (r *reviewRepository) GetByID(id uint) (*models.Review, error) {
 	return &reviews, nil
 }
 
-func (r *reviewRepository) GetByUserID(userID uint) ([]models.Review, error) {
-	var reviews []models.Review
-
-	if err := r.db.
-		Preload("Author").
-		Preload("TargetBook").
-		Where("target_user_id = ?", userID).
-		Find(&reviews).Error; err != nil {
-
-		r.log.Error("error in GetByUserID review")
-		return nil, err
-	}
-	return reviews, nil
-}
-
-func (r *reviewRepository) GetByBookID(bookID uint) ([]models.Review, error) {
-	var reviews []models.Review
-
-	if err := r.db.
-		Preload("Author").
-		Where("target_book_id = ?", bookID).
-		Find(&reviews).Error; err != nil {
-
-		r.log.Error("error in GetBYBookID review")
-		return nil, err
-	}
-	return reviews, nil
-}
-
 func (r *reviewRepository) Delete(id uint) error {
 	if err := r.db.Delete(&models.Review{}, id).Error; err != nil {
 		r.log.Error("error in Delete review")
 		return errors.New("error delete review")
 	}
 	return nil
+		r.log.Error("error in Create function review_repository.go")
+		return errors.New("error create category in db")
+	}
+
+	return r.db.Create(req).Error
+}
+
+func (r *reviewRepository) GetByTargetUserID(id uint) ([]models.Review, error) {
+	var list []models.Review
+	if err := r.db.
+		Where("target_user_id = ?", id).
+		Preload("Author").
+		Preload("TargetBook").
+		Find(&list).Error; err != nil {
+		return nil, err
+	}
+
+	return list, nil
+}
+
+func (r *reviewRepository) GetByTargetBookID(id uint) ([]models.Review, error) {
+	var list []models.Review
+	if err := r.db.
+		Where("target_book_id = ?", id).
+		Preload("Author").
+		Preload("TargetUser").
+		Find(&list).Error; err != nil {
+		return nil, err
+	}
+
+	return list, nil
 }
