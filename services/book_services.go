@@ -32,24 +32,24 @@ func NewServiceBook(bookRepo repository.BookRepository, log *slog.Logger) BookSe
 	}
 }
 
-func (s *bookService) CreateBook(userID uint, ras dto.CreateBookRequest) (*models.Book, error) {
+func (s *bookService) CreateBook(userID uint, req dto.CreateBookRequest) (*models.Book, error) {
 	book := &models.Book{
-		Title:       ras.Title,
-		Author:      ras.Author,
-		Description: ras.Description,
+		Title:       req.Title,
+		Author:      req.Author,
+		Description: req.Description,
 		Status:      "available",
 		UserID:      userID,
 	}
 
 	// Если AISummary пустой, генерируем через Grok AI
-	if ras.AISummary == "" {
-		summary, err := GenerateAISummary(ras.Description)
+	if req.AISummary == "" {
+		summary, err := GenerateAISummary(req.Description)
 		if err != nil {
 			return nil, err
 		}
 		book.AISummary = summary
 	} else {
-		book.AISummary = ras.AISummary
+		book.AISummary = req.AISummary
 	}
 
 	// Сохраняем книгу
@@ -58,8 +58,8 @@ func (s *bookService) CreateBook(userID uint, ras dto.CreateBookRequest) (*model
 	}
 
 	// Привязываем жанры
-	if len(ras.GenreIDs) > 0 {
-		if err := s.bookRepo.AttachGenres(book.ID, ras.GenreIDs); err != nil {
+	if len(req.GenreIDs) > 0 {
+		if err := s.bookRepo.AttachGenres(book.ID, req.GenreIDs); err != nil {
 			return nil, err
 		}
 	}
