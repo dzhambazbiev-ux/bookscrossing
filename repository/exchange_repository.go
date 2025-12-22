@@ -14,11 +14,11 @@ type ExchangeRepository interface {
 }
 
 type exchangeRepository struct {
-	db  gorm.DB
+	db  *gorm.DB
 	log *slog.Logger
 }
 
-func NewExchangeRepository(db gorm.DB, log *slog.Logger) ExchangeRepository {
+func NewExchangeRepository(db *gorm.DB, log *slog.Logger) ExchangeRepository {
 	return &exchangeRepository{
 		db:  db,
 		log: log,
