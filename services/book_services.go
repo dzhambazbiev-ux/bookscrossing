@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
 	"github.com/dasler-fw/bookcrossing/internal/models"
@@ -18,6 +19,7 @@ type BookService interface {
 	GetList() ([]models.Book, error)
 	Update(bookID uint, userID uint, req dto.UpdateBookRequest) (*models.Book, error)
 	Delete(id uint) error
+	SearchBooks(query dto.BookListQuery) ([]models.Book, int64, error)
 }
 
 type bookService struct {
@@ -85,27 +87,26 @@ func (s *bookService) GetList() ([]models.Book, error) {
 }
 
 func (s *bookService) Update(bookID uint, userID uint, req dto.UpdateBookRequest) (*models.Book, error) {
-    book, err := s.bookRepo.GetByID(bookID)
-    if err != nil {
-        return nil, err
-    }
+	book, err := s.bookRepo.GetByID(bookID)
+	if err != nil {
+		return nil, err
+	}
 
-    if book.UserID != userID {
-        return nil, errors.New("только владелец может редактировать книгу")
-    }
+	if book.UserID != userID {
+		return nil, errors.New("только владелец может редактировать книгу")
+	}
 
     if req.Description != nil {
         book.Description = *req.Description
     }
 
 
-    if err := s.bookRepo.Update(book); err != nil {
-        return nil, err
-    }
+	if err := s.bookRepo.Update(book); err != nil {
+		return nil, err
+	}
 
-    return book, nil
+	return book, nil
 }
-
 
 func (s *bookService) Delete(id uint) error {
 	book, err := s.bookRepo.GetByID(id)
@@ -116,7 +117,7 @@ func (s *bookService) Delete(id uint) error {
 		return errors.New("нельзя удалить книгу, участвующую в обмене")
 	}
 
-	return  nil
+	return nil
 }
 
 func GenerateAISummary(description string) (string, error) {
@@ -153,4 +154,19 @@ func GenerateAISummary(description string) (string, error) {
 	}
 
 	return "", nil
+}
+
+func (s *bookService) SearchBooks(query dto.BookListQuery) ([]models.Book, int64, error) {
+	query.SortBy = strings.ToLower(strings.TrimSpace(query.SortBy))
+	query.SortOrder = strings.ToLower(strings.TrimSpace(query.SortOrder))
+
+	if query.SortBy == "" {
+		query.SortBy = "created_at"
+	}
+
+	if query.SortOrder == "" {
+		query.SortOrder = "desc"
+	}
+
+	return s.bookRepo.Search(query)
 }

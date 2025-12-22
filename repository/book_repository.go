@@ -3,7 +3,9 @@ package repository
 import (
 	"errors"
 	"log/slog"
+	"strings"
 
+	"github.com/dasler-fw/bookcrossing/internal/dto"
 	"github.com/dasler-fw/bookcrossing/internal/models"
 	"gorm.io/gorm"
 )
@@ -14,6 +16,7 @@ type BookRepository interface {
 	GetByID(id uint) (*models.Book, error)
 	Update(book *models.Book) error
 	Delete(id uint) error
+	Search(query dto.BookListQuery) ([]models.Book, int64, error)
 	AttachGenres(bookID uint, genreIDs []uint) error
 }
 
@@ -74,6 +77,93 @@ func (r *bookRepository) Delete(id uint) error {
 	}
 
 	return nil
+}
+
+func (r *bookRepository) Search(query dto.BookListQuery) ([]models.Book, int64, error) {
+	db := r.db.Model(&models.Book{})
+
+	if query.GenreID != nil {
+		db = db.Joins("JOIN book_genres bg ON bg.book_id = books.id").
+			Where("bg.genre_id = ?", *query.GenreID)
+	}
+
+	if query.City != "" {
+		db = db.Joins("JOIN users u ON u.id = books.user_id").
+			Where("u.city ILIKE ?", "%"+query.City+"%")
+	}
+
+	if query.Author != "" {
+		db = db.Where("books.author ILIKE ?", "%"+query.Author+"%")
+	}
+
+	if query.Title != "" {
+		db = db.Where("books.title ILIKE ?", "%"+query.Title+"%")
+	}
+
+	if query.Status != "" {
+		db = db.Where("books.status = ?", query.Status)
+	}
+
+	var total int64
+	if err := db.Session(&gorm.Session{}).
+		Distinct("books.id").
+		Count(&total).Error; err != nil {
+		r.log.Error("ошибка считывании книг", "err", err)
+		return nil, 0, err
+	}
+
+	sortBy := strings.ToLower(strings.TrimSpace(query.SortBy))
+	sortOrder := strings.ToLower(strings.TrimSpace(query.SortOrder))
+
+	validSortFields := map[string]string{
+		"title":      "books.title",
+		"created_at": "books.created_at",
+	}
+
+	sortField, ok := validSortFields[sortBy]
+	if !ok {
+		sortField = "books.created_at"
+	}
+
+	validOrders := map[string]string{
+		"asc":  "ASC",
+		"desc": "DESC",
+	}
+
+	order, ok := validOrders[sortOrder]
+	if !ok {
+		order = "DESC"
+	}
+
+	if query.Page <= 0 {
+		query.Page = dto.DefaultPage
+	}
+
+	if query.Limit <= 0 {
+		query.Limit = dto.DefaultLimit
+	}
+
+	if query.Limit > dto.MaxLimit {
+		query.Limit = dto.MaxLimit
+	}
+
+	offset := (query.Page - 1) * query.Limit
+
+	var books []models.Book
+
+	if err := db.Session(&gorm.Session{}).
+		Distinct("books.id", sortField).
+		Preload("Genres").
+		Preload("User").
+		Order(sortField + " " + order).
+		Limit(query.Limit).
+		Offset(offset).
+		Find(&books).Error; err != nil {
+		r.log.Error("ошибка при поиске книг", "err", err)
+		return nil, 0, err
+	}
+
+	return books, total, nil
 }
 
 func (r *bookRepository) AttachGenres(bookID uint, genreIDs []uint) error {
