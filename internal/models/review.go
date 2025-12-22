@@ -9,8 +9,8 @@ import (
 type Review struct {
 	gorm.Model
 	AuthorID     uint
-	TargetUserID uint `json:"targer_user_id"`
-	TargetBookID uint `json:"targer_book_id"`
+	TargetUserID uint `json:"target_user_id"`
+	TargetBookID uint `json:"target_book_id"`
 	Text         string
 	Rating       int
 	CreatedAt    time.Time
