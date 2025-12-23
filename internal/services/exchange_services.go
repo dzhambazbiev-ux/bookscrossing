@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/dasler-fw/bookcrossing/internal/models"
-	"github.com/dasler-fw/bookcrossing/repository"
+	"github.com/dasler-fw/bookcrossing/internal/repository"
 )
 
 type ExchangeService interface {

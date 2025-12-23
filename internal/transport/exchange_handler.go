@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/dasler-fw/bookcrossing/internal/models"
-	"github.com/dasler-fw/bookcrossing/services"
+	"github.com/dasler-fw/bookcrossing/internal/services"
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,6 +26,6 @@ func (h *ExchangeHandler) CreateExchange(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{"message": "Exchange created successfully"})
 }
