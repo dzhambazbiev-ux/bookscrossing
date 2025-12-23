@@ -18,8 +18,10 @@ type BookService interface {
 	GetByID(id uint) (*models.Book, error)
 	GetList() ([]models.Book, error)
 	Update(bookID uint, userID uint, req dto.UpdateBookRequest) (*models.Book, error)
-	Delete(id uint) error
+	Delete(bookID uint, userID uint) error
 	SearchBooks(query dto.BookListQuery) ([]models.Book, int64, error)
+	GetBooksByUserID(userID uint, status string) ([]models.Book, error)
+	GetAvailableBooks(city string) ([]models.Book, error)
 }
 
 type bookService struct {
@@ -75,7 +77,7 @@ func (s *bookService) GetByID(id uint) (*models.Book, error) {
 		return nil, err
 	}
 
-	return book, err
+	return book, nil
 }
 
 func (s *bookService) GetList() ([]models.Book, error) {
@@ -96,10 +98,9 @@ func (s *bookService) Update(bookID uint, userID uint, req dto.UpdateBookRequest
 		return nil, errors.New("только владелец может редактировать книгу")
 	}
 
-    if req.Description != nil {
-        book.Description = *req.Description
-    }
-
+	if req.Description != nil {
+		book.Description = *req.Description
+	}
 
 	if err := s.bookRepo.Update(book); err != nil {
 		return nil, err
@@ -108,17 +109,23 @@ func (s *bookService) Update(bookID uint, userID uint, req dto.UpdateBookRequest
 	return book, nil
 }
 
-func (s *bookService) Delete(id uint) error {
-	book, err := s.bookRepo.GetByID(id)
+func (s *bookService) Delete(bookID uint, userID uint) error {
+	book, err := s.bookRepo.GetByID(bookID)
 	if err != nil {
 		return err
 	}
+
+	if book.UserID != userID {
+		return errors.New("нельзя удалить чужую книгу")
+	}
+
 	if book.Status == "pending" || book.Status == "accepted" {
 		return errors.New("нельзя удалить книгу, участвующую в обмене")
 	}
 
-	return nil
+	return s.bookRepo.Delete(bookID)
 }
+
 
 func GenerateAISummary(description string) (string, error) {
 	apiKey := "GROK_API_KEY"
@@ -169,4 +176,12 @@ func (s *bookService) SearchBooks(query dto.BookListQuery) ([]models.Book, int64
 	}
 
 	return s.bookRepo.Search(query)
+}
+
+func (s *bookService) GetBooksByUserID(userID uint, status string) ([]models.Book, error) {
+	return s.bookRepo.GetByUserID(userID, status)
+}
+
+func (s *bookService) GetAvailableBooks(city string) ([]models.Book, error) {
+	return s.bookRepo.GetAvailable(city)
 }
