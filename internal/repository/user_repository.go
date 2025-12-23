@@ -8,6 +8,8 @@ import (
 	"gorm.io/gorm"
 )
 
+var ErrUserNotFound = errors.New("пользователь не найден")
+
 type UserRepository interface {
 	Create(user *models.User) error
 	GetByID(id uint) (*models.User, error)
@@ -39,27 +41,38 @@ func (r *userRepository) Create(user *models.User) error {
 
 func (r *userRepository) GetByID(id uint) (*models.User, error) {
 	var user models.User
+	err := r.db.First(&user, id).Error
+	if err != nil {
+		r.log.Error("ошибка получения пользователя", "id", id, "err", err)
 
-	if err := r.db.First(&user, id).Error; err != nil {
-		r.log.Error("ошибка получения профиля по ID")
-		return nil, errors.New("пользователь не найден")
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrUserNotFound
+		}
+		return nil, errors.New("ошибка базы данных")
 	}
 	return &user, nil
+
 }
 
 func (r *userRepository) Update(user *models.User) error {
-	if user == nil {
-		r.log.Error("ошибка обновления профиля")
-		return errors.New("пустой пользователь")
+	if user == nil || user.ID == 0 {
+		r.log.Error("ошибка обновления: пустой профиль или отсутствует ID")
+		return errors.New("некорректный пользователь для обновления")
 	}
+
 	return r.db.Save(user).Error
+
 }
 
 func (r *userRepository) GetByEmail(email string) (*models.User, error) {
 	var user models.User
 	if err := r.db.Where("email = ?", email).First(&user).Error; err != nil {
 		r.log.Error("ошибка получения профиля по Email")
-		return nil, errors.New("пользователь не найден")
+
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrUserNotFound
+		}
+		return nil, errors.New("ошибка базы данных")
 	}
 	return &user, nil
 }
