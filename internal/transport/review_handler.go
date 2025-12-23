@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
-	"github.com/dasler-fw/bookcrossing/services"
+	"github.com/dasler-fw/bookcrossing/internal/services"
 	"github.com/gin-gonic/gin"
 )
 
