@@ -18,6 +18,8 @@ type BookRepository interface {
 	Delete(id uint) error
 	Search(query dto.BookListQuery) ([]models.Book, int64, error)
 	AttachGenres(bookID uint, genreIDs []uint) error
+	GetByUserID(userID uint, status string) ([]models.Book, error)
+	GetAvailable(city string) ([]models.Book, error)
 }
 
 type bookRepository struct {
@@ -152,7 +154,7 @@ func (r *bookRepository) Search(query dto.BookListQuery) ([]models.Book, int64, 
 	var books []models.Book
 
 	if err := db.Session(&gorm.Session{}).
-		Distinct("books.id", sortField).
+		Distinct("books.id").
 		Preload("Genres").
 		Preload("User").
 		Order(sortField + " " + order).
@@ -183,4 +185,47 @@ func (r *bookRepository) AttachGenres(bookID uint, genreIDs []uint) error {
 	}
 
 	return nil
+}
+
+func (r *bookRepository) GetByUserID(userID uint, status string) ([]models.Book, error) {
+	var books []models.Book
+
+	db := r.db.Model(&models.Book{}).Where("user_id = ?", userID)
+
+	if status != "" {
+		db = db.Where("status = ?", strings.TrimSpace(status))
+	}
+
+	if err := db.Preload("Genres").
+		Preload("User").
+		Order("created_at DESC").
+		Find(&books).Error; err != nil {
+		r.log.Error("Ошибка в функции GetByUserID book_repository.go", "err", err)
+		return nil, err
+	}
+
+	return books, nil
+}
+
+func (r *bookRepository) GetAvailable(city string) ([]models.Book, error) {
+	var books []models.Book
+
+	db := r.db.Model(&models.Book{}).
+		Where("books.status = ?", "available")
+
+	city = strings.TrimSpace(city)
+	if city != "" {
+		db = db.Joins("JOIN users u ON u.id = books.user_id").
+			Where("u.city ILIKE ?", "%"+city+"%")
+	}
+
+	if err := db.Preload("Genres").
+		Preload("User").
+		Order("created_at DESC").
+		Find(&books).Error; err != nil {
+		r.log.Error("Ошибка в функции GetAvailable book_repository.go", "err", err)
+		return nil, err
+	}
+
+	return books, nil
 }

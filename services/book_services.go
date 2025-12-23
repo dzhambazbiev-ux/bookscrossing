@@ -20,6 +20,8 @@ type BookService interface {
 	Update(bookID uint, userID uint, req dto.UpdateBookRequest) (*models.Book, error)
 	Delete(id uint) error
 	SearchBooks(query dto.BookListQuery) ([]models.Book, int64, error)
+	GetBooksByUserID(userID uint, status string) ([]models.Book, error)
+	GetAvailableBooks(city string) ([]models.Book, error)
 }
 
 type bookService struct {
@@ -96,10 +98,9 @@ func (s *bookService) Update(bookID uint, userID uint, req dto.UpdateBookRequest
 		return nil, errors.New("только владелец может редактировать книгу")
 	}
 
-    if req.Description != nil {
-        book.Description = *req.Description
-    }
-
+	if req.Description != nil {
+		book.Description = *req.Description
+	}
 
 	if err := s.bookRepo.Update(book); err != nil {
 		return nil, err
@@ -169,4 +170,12 @@ func (s *bookService) SearchBooks(query dto.BookListQuery) ([]models.Book, int64
 	}
 
 	return s.bookRepo.Search(query)
+}
+
+func (s *bookService) GetBooksByUserID(userID uint, status string) ([]models.Book, error) {
+	return s.bookRepo.GetByUserID(userID, status)
+}
+
+func (s *bookService) GetAvailableBooks(city string) ([]models.Book, error) {
+	return s.bookRepo.GetAvailable(city)
 }

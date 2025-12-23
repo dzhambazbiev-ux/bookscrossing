@@ -3,6 +3,7 @@ package transport
 import (
 	"math"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
@@ -23,7 +24,9 @@ func (h *BookHandler) RegisterRoutes(r *gin.Engine) {
 	books := r.Group("/books")
 	{
 		books.GET("", h.Search)
+		books.GET("available", h.GetAvailable)
 	}
+	r.GET("/users/:id/books", h.GetByUserID)
 }
 
 func (h *BookHandler) Search(ctx *gin.Context) {
@@ -103,4 +106,45 @@ func mapBookToResponse(b models.Book) dto.BookResponse {
 		Owner:       owner,
 		Genres:      genres,
 	}
+}
+
+func (h *BookHandler) GetByUserID(ctx *gin.Context) {
+	userIDStr := ctx.Param("id")
+	userID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil || userID <= 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "некорректный id"})
+		return
+	}
+
+	status := ctx.Query("status")
+
+	books, err := h.service.GetBooksByUserID(uint(userID), status)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	respBook := make([]dto.BookResponse, 0, len(books))
+	for _, b := range books {
+		respBook = append(respBook, mapBookToResponse(b))
+	}
+
+	ctx.JSON(http.StatusOK, respBook)
+}
+
+func (h *BookHandler) GetAvailable(ctx *gin.Context) {
+	city := ctx.Query("city")
+
+	books, err := h.service.GetAvailableBooks(city)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	respBook := make([]dto.BookResponse, 0, len(books))
+	for _, b := range books {
+		respBook = append(respBook, mapBookToResponse(b))
+	}
+
+	ctx.JSON(http.StatusOK, books)
 }
