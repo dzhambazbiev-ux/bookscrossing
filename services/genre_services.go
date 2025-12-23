@@ -1,7 +1,6 @@
 package services
 
 import (
-	"errors"
 	"strings"
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
@@ -28,7 +27,7 @@ func (s *genreService) Create(req dto.GenreCreateRequest) (*models.Genre, error)
 	name := strings.TrimSpace(req.Name)
 
 	if name == "" {
-		return nil, errors.New("genre name is required")
+		return nil, repository.ErrInvalidInput
 	}
 
 	genre := &models.Genre{
@@ -51,6 +50,5 @@ func (s *genreService) List() ([]models.Genre, error) {
 }
 
 func (s *genreService) Delete(id uint) error {
-
 	return s.repo.Delete(id)
 }
