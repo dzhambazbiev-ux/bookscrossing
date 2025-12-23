@@ -19,7 +19,7 @@ func NewGenreHandler(service services.GenreService) *GenreHandler {
 	return &GenreHandler{service: service}
 }
 
-func (h *GenreHandler) RegisterGenreRoutes(r *gin.RouterGroup) {
+func (h *GenreHandler) RegisterGenreRoutes(r *gin.Engine) {
 	r.POST("/genres", h.Create)
 	r.GET("/genres", h.List)
 	r.GET("/genres/:id", h.GetByID)

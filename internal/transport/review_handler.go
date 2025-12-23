@@ -17,7 +17,7 @@ func NewReviewHandler(service services.ReviewService) *ReviewHandler {
 	return &ReviewHandler{service: service}
 }
 
-func (h *ReviewHandler) RegisterReviewRoutes(r *gin.RouterGroup) {
+func (h *ReviewHandler) RegisterReviewRoutes(r *gin.Engine) {
 	r.POST("/review", h.Create)
 	r.DELETE("/review/:id", h.Delete)
 	r.GET("/users/:id/review", h.GetByUser)
