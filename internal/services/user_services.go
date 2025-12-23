@@ -6,7 +6,7 @@ import (
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
 	"github.com/dasler-fw/bookcrossing/internal/models"
-	"github.com/dasler-fw/bookcrossing/repository"
+	"github.com/dasler-fw/bookcrossing/internal/repository"
 	"golang.org/x/crypto/bcrypt"
 )
 
