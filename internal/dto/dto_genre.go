@@ -1,9 +1,5 @@
 package dto
 
 type GenreCreateRequest struct {
-	Name string
-}
-
-type GenreUpdateRequest struct {
-	Name *string
+	Name string `json":"name"`
 }
