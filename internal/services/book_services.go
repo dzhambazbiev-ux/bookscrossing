@@ -6,10 +6,11 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
 	"github.com/dasler-fw/bookcrossing/internal/models"
-	"github.com/dasler-fw/bookcrossing/repository"
+	"github.com/dasler-fw/bookcrossing/internal/repository"
 )
 
 type BookService interface {
@@ -17,7 +18,10 @@ type BookService interface {
 	GetByID(id uint) (*models.Book, error)
 	GetList() ([]models.Book, error)
 	Update(bookID uint, userID uint, req dto.UpdateBookRequest) (*models.Book, error)
-	Delete(id uint) error
+	Delete(bookID uint, userID uint) error
+	SearchBooks(query dto.BookListQuery) ([]models.Book, int64, error)
+	GetBooksByUserID(userID uint, status string) ([]models.Book, error)
+	GetAvailableBooks(city string) ([]models.Book, error)
 }
 
 type bookService struct {
@@ -73,7 +77,7 @@ func (s *bookService) GetByID(id uint) (*models.Book, error) {
 		return nil, err
 	}
 
-	return book, err
+	return book, nil
 }
 
 func (s *bookService) GetList() ([]models.Book, error) {
@@ -85,39 +89,43 @@ func (s *bookService) GetList() ([]models.Book, error) {
 }
 
 func (s *bookService) Update(bookID uint, userID uint, req dto.UpdateBookRequest) (*models.Book, error) {
-    book, err := s.bookRepo.GetByID(bookID)
-    if err != nil {
-        return nil, err
-    }
+	book, err := s.bookRepo.GetByID(bookID)
+	if err != nil {
+		return nil, err
+	}
 
-    if book.UserID != userID {
-        return nil, errors.New("только владелец может редактировать книгу")
-    }
+	if book.UserID != userID {
+		return nil, errors.New("только владелец может редактировать книгу")
+	}
 
-    if req.Description != nil {
-        book.Description = *req.Description
-    }
+	if req.Description != nil {
+		book.Description = *req.Description
+	}
 
+	if err := s.bookRepo.Update(book); err != nil {
+		return nil, err
+	}
 
-    if err := s.bookRepo.Update(book); err != nil {
-        return nil, err
-    }
-
-    return book, nil
+	return book, nil
 }
 
-
-func (s *bookService) Delete(id uint) error {
-	book, err := s.bookRepo.GetByID(id)
+func (s *bookService) Delete(bookID uint, userID uint) error {
+	book, err := s.bookRepo.GetByID(bookID)
 	if err != nil {
 		return err
 	}
+
+	if book.UserID != userID {
+		return errors.New("нельзя удалить чужую книгу")
+	}
+
 	if book.Status == "pending" || book.Status == "accepted" {
 		return errors.New("нельзя удалить книгу, участвующую в обмене")
 	}
 
-	return  nil
+	return s.bookRepo.Delete(bookID)
 }
+
 
 func GenerateAISummary(description string) (string, error) {
 	apiKey := "GROK_API_KEY"
@@ -153,4 +161,27 @@ func GenerateAISummary(description string) (string, error) {
 	}
 
 	return "", nil
+}
+
+func (s *bookService) SearchBooks(query dto.BookListQuery) ([]models.Book, int64, error) {
+	query.SortBy = strings.ToLower(strings.TrimSpace(query.SortBy))
+	query.SortOrder = strings.ToLower(strings.TrimSpace(query.SortOrder))
+
+	if query.SortBy == "" {
+		query.SortBy = "created_at"
+	}
+
+	if query.SortOrder == "" {
+		query.SortOrder = "desc"
+	}
+
+	return s.bookRepo.Search(query)
+}
+
+func (s *bookService) GetBooksByUserID(userID uint, status string) ([]models.Book, error) {
+	return s.bookRepo.GetByUserID(userID, status)
+}
+
+func (s *bookService) GetAvailableBooks(city string) ([]models.Book, error) {
+	return s.bookRepo.GetAvailable(city)
 }

@@ -6,9 +6,9 @@ import (
 
 	"github.com/dasler-fw/bookcrossing/internal/config"
 	"github.com/dasler-fw/bookcrossing/internal/models"
-	"github.com/dasler-fw/bookcrossing/repository"
-	"github.com/dasler-fw/bookcrossing/services"
-	"github.com/dasler-fw/bookcrossing/transport"
+	"github.com/dasler-fw/bookcrossing/internal/repository"
+	"github.com/dasler-fw/bookcrossing/internal/services"
+	"github.com/dasler-fw/bookcrossing/internal/transport"
 	"github.com/gin-gonic/gin"
 )
 
