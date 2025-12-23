@@ -8,7 +8,7 @@ import (
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
 	"github.com/dasler-fw/bookcrossing/internal/models"
-	"github.com/dasler-fw/bookcrossing/services"
+	"github.com/dasler-fw/bookcrossing/internal/services"
 	"github.com/gin-gonic/gin"
 )
 
@@ -249,5 +249,5 @@ func (h *BookHandler) GetAvailable(ctx *gin.Context) {
 		respBook = append(respBook, mapBookToResponse(b))
 	}
 
-	ctx.JSON(http.StatusOK, books)
+	ctx.JSON(http.StatusOK, respBook)
 }
