@@ -49,7 +49,7 @@ func (h *BookHandler) CreateBook(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(201, book)
+	ctx.JSON(http.StatusCreated, book)
 }
 
 
@@ -82,7 +82,7 @@ func (h *BookHandler) GetBookList(ctx *gin.Context) {
 func (h *BookHandler) UpdateBook(ctx *gin.Context) {
 	bookID, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
-		ctx.JSON(400, gin.H{"error": "invalid book id"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid book id"})
 		return
 	}
 
@@ -90,17 +90,17 @@ func (h *BookHandler) UpdateBook(ctx *gin.Context) {
 
 	var req dto.UpdateBookRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(400, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	book, err := h.service.Update(uint(bookID), userID, req)
 	if err != nil {
-		ctx.JSON(403, gin.H{"error": err.Error()})
+		ctx.IndentedJSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(200, mapBookToResponse(*book))
+	ctx.IndentedJSON(http.StatusOK, mapBookToResponse(*book))
 }
 
 
