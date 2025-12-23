@@ -3,15 +3,18 @@ package services
 import (
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
+	"github.com/dasler-fw/bookcrossing/internal/jwtutil"
 	"github.com/dasler-fw/bookcrossing/internal/models"
 	"github.com/dasler-fw/bookcrossing/internal/repository"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService interface {
-	CreateUser(req dto.UserCreateRequest) (*models.User, error)
+	Register(req dto.UserCreateRequest) (string, error)
+	Login(req dto.LoginRequest) (string, error)
 	GetUserByID(id uint) (*models.User, error)
 	UpdateUser(id uint, req dto.UserUpdateRequest) (*models.User, error)
 	ListUsers() ([]models.User, error)
@@ -30,24 +33,42 @@ func NewServiceUser(userRepo repository.UserRepository, log *slog.Logger) UserSe
 	}
 }
 
-func (s *userService) CreateUser(req dto.UserCreateRequest) (*models.User, error) {
+func (s *userService) Register(req dto.UserCreateRequest) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		s.log.Error("ошибка хеширования пароля", "email", req.Email, "err", err)
-		return nil, errors.New("ошибка обработки пароля")
+		return "", err
 	}
+
 	user := &models.User{
 		Name:         req.Name,
 		Email:        req.Email,
 		PasswordHash: string(hash),
 		City:         req.City,
 		Address:      req.Address,
+		RegisteredAt: time.Now(),
 	}
-	if err := s.userRepo.Create(user); err != nil {
-		return nil, errors.New("ошибка создания пользователя")
 
+	if err := s.userRepo.Create(user); err != nil {
+		return "", err
 	}
-	return user, nil
+
+	return jwtutil.GenerateToken(user.ID)
+}
+
+func (s *userService) Login(req dto.LoginRequest) (string, error) {
+	user, err := s.userRepo.GetByEmail(req.Email)
+	if err != nil {
+		return "", errors.New("invalid credentials")
+	}
+
+	if err := bcrypt.CompareHashAndPassword(
+		[]byte(user.PasswordHash),
+		[]byte(req.Password),
+	); err != nil {
+		return "", errors.New("invalid credentials")
+	}
+
+	return jwtutil.GenerateToken(user.ID)
 }
 
 func (s *userService) GetUserByID(id uint) (*models.User, error) {
