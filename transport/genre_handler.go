@@ -1,10 +1,12 @@
 package transport
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
+	"github.com/dasler-fw/bookcrossing/repository"
 	"github.com/dasler-fw/bookcrossing/services"
 	"github.com/gin-gonic/gin"
 )
@@ -33,16 +35,24 @@ func (h *GenreHandler) Create(c *gin.Context) {
 		})
 		return
 	}
-
 	genre, err := h.service.Create(req)
 	if err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+		// map repository/service errors to HTTP codes
+		switch {
+		case errors.Is(err, repository.ErrInvalidInput):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		case errors.Is(err, repository.ErrConflict):
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create genre"})
+			return
+		}
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"genre created": genre,
-	})
+	// return created resource directly
+	c.JSON(http.StatusCreated, genre)
 }
 
 func (h *GenreHandler) List(c *gin.Context) {
@@ -51,6 +61,7 @@ func (h *GenreHandler) List(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "failed to get genres",
 		})
+		// logging can be done inside repo/service; avoid undefined handler logger here
 		return
 	}
 
@@ -59,8 +70,8 @@ func (h *GenreHandler) List(c *gin.Context) {
 
 func (h *GenreHandler) GetByID(c *gin.Context) {
 	idStr := c.Param("id")
-
 	id, err := strconv.Atoi(idStr)
+
 	if err != nil || id <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "invalid genre id",
@@ -68,21 +79,29 @@ func (h *GenreHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	genre, err := h.service.GetByID(uint(id))
+	g, err := h.service.GetByID(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "genre not found",
-		})
+		if errors.Is(err, repository.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "genre not found"})
+			return
+		} else if errors.Is(err, repository.ErrInvalidInput) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
+			return
+		} else if errors.Is(err, repository.ErrConflict) {
+			c.JSON(http.StatusConflict, gin.H{"error": "conflict"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
 
-	c.JSON(http.StatusOK, genre)
+	c.JSON(http.StatusOK, g)
 }
 
 func (h *GenreHandler) Delete(c *gin.Context) {
 	idStr := c.Param("id")
-
 	id, err := strconv.Atoi(idStr)
+
 	if err != nil || id <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "invalid genre id",
@@ -91,9 +110,11 @@ func (h *GenreHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(uint(id)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to delete genre",
-		})
+		if errors.Is(err, repository.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "genre not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete genre"})
 		return
 	}
 
