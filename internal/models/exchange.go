@@ -16,7 +16,7 @@ type Exchange struct {
 	CreatedAt       time.Time  `json:"created_at"`
 	CompletedAt     *time.Time `json:"completed_at"`
 
-  Initiator *User `json:"initiator" gorm:"foreignKey:InitiatorID"`
+	Initiator *User `json:"initiator" gorm:"foreignKey:InitiatorID"`
 	Recipient *User `json:"recipient" gorm:"foreignKey:RecipientID"`
 
 	InitiatorBook *Book `json:"initiator_book" gorm:"foreignKey:InitiatorBookID"`

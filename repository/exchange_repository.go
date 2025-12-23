@@ -9,7 +9,7 @@ import (
 )
 
 type ExchangeRepository interface {
-	Create(req *models.Exchange) error
+	CreateExchange(req *models.Exchange) error
 	Update(req *models.Exchange) error
 }
 
@@ -25,7 +25,7 @@ func NewExchangeRepository(db *gorm.DB, log *slog.Logger) ExchangeRepository {
 	}
 }
 
-func (r *exchangeRepository) Create(req *models.Exchange) error {
+func (r *exchangeRepository) CreateExchange(req *models.Exchange) error {
 	if req == nil {
 		r.log.Error("error in Create function exchange_repository.go")
 		return errors.New("error create category in db")
@@ -42,4 +42,3 @@ func (r *exchangeRepository) Update(req *models.Exchange) error {
 
 	return r.db.Save(req).Error
 }
-
