@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
+	"github.com/dasler-fw/bookcrossing/internal/middleware"
 	"github.com/dasler-fw/bookcrossing/internal/services"
 	"github.com/gin-gonic/gin"
 )
@@ -23,7 +24,7 @@ func (h *UserHandler) RegisterRoutes(r *gin.Engine) {
 		users.POST("/register", h.Register)
 		users.POST("/login", h.Login)
 		users.GET("/:id", h.GetProfile)
-		users.PATCH("/:id", h.UpdateProfile)
+		users.PATCH("/:id", middleware.JWTAuth(), h.UpdateProfile)
 		users.GET("/:id/exchanges", h.GetUserExchanges)
 
 	}
@@ -39,11 +40,23 @@ func (h *UserHandler) Register(c *gin.Context) {
 
 	token, err := h.userServ.Register(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		if err.Error() == "email уже используется" {
+			c.JSON(http.StatusConflict, gin.H{
+				"error": "email уже используется",
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "не удалось зарегистрировать пользователя",
+		})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"token": token})
+	c.JSON(http.StatusCreated, gin.H{
+		"token": token,
+	})
+
 }
 
 func (h *UserHandler) Login(c *gin.Context) {
@@ -119,7 +132,19 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 }
 
 func (h *UserHandler) GetUserExchanges(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{
-		"message": "история обменов реализуется в модуле exchange",
-	})
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "некорректный идентификатор пользователя"})
+		return
+	}
+
+	status := c.Query("status")
+
+	exchanges, err := h.userServ.GetUserExchanges(uint(id), status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "не удалось получить историю обменов"})
+		return
+	}
+
+	c.JSON(http.StatusOK, exchanges)
 }

@@ -3,13 +3,13 @@ package services
 import (
 	"errors"
 	"log/slog"
-	"time"
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
 	"github.com/dasler-fw/bookcrossing/internal/jwtutil"
 	"github.com/dasler-fw/bookcrossing/internal/models"
 	"github.com/dasler-fw/bookcrossing/internal/repository"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type UserService interface {
@@ -21,16 +21,19 @@ type UserService interface {
 	DeleteUser(id uint) error
 	GetProfile(userID uint) (*dto.UserProfileResponse, error)
 	UpdateProfile(userID uint, req dto.UserUpdateRequest) error
+	GetUserExchanges(userID uint, status string) ([]models.Exchange, error)
 }
 
 type userService struct {
+	db       *gorm.DB
 	userRepo repository.UserRepository
 	bookRepo repository.BookRepository
 	log      *slog.Logger
 }
 
-func NewServiceUser(userRepo repository.UserRepository, bookRepo repository.BookRepository, log *slog.Logger) UserService {
+func NewServiceUser(db *gorm.DB, userRepo repository.UserRepository, bookRepo repository.BookRepository, log *slog.Logger) UserService {
 	return &userService{
+		db:       db,
 		userRepo: userRepo,
 		bookRepo: bookRepo,
 		log:      log,
@@ -38,6 +41,12 @@ func NewServiceUser(userRepo repository.UserRepository, bookRepo repository.Book
 }
 
 func (s *userService) Register(req dto.UserCreateRequest) (string, error) {
+
+	_, err := s.userRepo.GetByEmail(req.Email)
+	if err == nil {
+		return "", errors.New("email уже используется")
+	}
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
@@ -49,7 +58,6 @@ func (s *userService) Register(req dto.UserCreateRequest) (string, error) {
 		PasswordHash: string(hash),
 		City:         req.City,
 		Address:      req.Address,
-		RegisteredAt: time.Now(),
 	}
 
 	if err := s.userRepo.Create(user); err != nil {
@@ -139,16 +147,19 @@ func (s *userService) GetProfile(userID uint) (*dto.UserProfileResponse, error) 
 
 	books, err := s.bookRepo.GetByUserID(userID, "")
 	if err != nil {
-		return nil, err
+		return nil, errors.New("ошибка получения книг пользователя")
 	}
 
-	successfulExchanges := int64(0)
-
+	var successfulExchanges int64
+	if err := s.db.Model(&models.Exchange{}).
+		Where("(initiator_id = ? OR recipient_id = ?) AND status = ?", userID, userID, "completed").
+		Count(&successfulExchanges).Error; err != nil {
+		return nil, errors.New("ошибка подсчёта успешных обменов")
+	}
 	return &dto.UserProfileResponse{
 		ID:                       user.ID,
 		Name:                     user.Name,
 		City:                     user.City,
-		RegisteredAt:             user.RegisteredAt,
 		BooksCount:               int64(len(books)),
 		SuccessfulExchangesCount: successfulExchanges,
 	}, nil
@@ -173,4 +184,21 @@ func (s *userService) UpdateProfile(userID uint, req dto.UserUpdateRequest) erro
 		return errors.New("ошибка обновления профиля пользователя")
 	}
 	return nil
+}
+
+func (s *userService) GetUserExchanges(userID uint, status string) ([]models.Exchange, error) {
+	var exchanges []models.Exchange
+
+	q := s.db.Model(&models.Exchange{}).
+		Where("initiator_id = ? OR recipient_id = ?", userID, userID)
+
+	if status != "" {
+		q = q.Where("status = ?", status)
+	}
+
+	if err := q.Order("created_at desc").Find(&exchanges).Error; err != nil {
+		return nil, errors.New("ошибка получения истории обменов")
+	}
+
+	return exchanges, nil
 }
