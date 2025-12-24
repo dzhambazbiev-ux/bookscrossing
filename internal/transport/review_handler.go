@@ -5,8 +5,10 @@ import (
 	"strconv"
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
+	"github.com/dasler-fw/bookcrossing/internal/middleware"
 	"github.com/dasler-fw/bookcrossing/internal/services"
 	"github.com/gin-gonic/gin"
+	
 )
 
 type ReviewHandler struct {
@@ -18,8 +20,8 @@ func NewReviewHandler(service services.ReviewService) *ReviewHandler {
 }
 
 func (h *ReviewHandler) RegisterReviewRoutes(r *gin.Engine) {
-	r.POST("/review", h.Create)
-	r.DELETE("/review/:id", h.Delete)
+	r.POST("/review", middleware.JWTAuth(), h.Create)
+	r.DELETE("/review/:id",middleware.JWTAuth(), h.Delete)
 	r.GET("/users/:id/review", h.GetByUser)
 	r.GET("/book/:id/review", h.GetByBook)
 }
@@ -109,7 +111,7 @@ func (h *ReviewHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	authorID, ok := c.Get("userID")
+	authorID, ok := c.Get("user_id")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": "unauthorized",
