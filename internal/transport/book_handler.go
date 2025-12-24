@@ -25,11 +25,10 @@ func (h *BookHandler) RegisterRoutes(r *gin.Engine) {
 	{
 		books.POST("", h.CreateBook)
 		books.GET("/:id", h.GetBookByID)
-		books.GET("", h.GetBookList)
 		books.PATCH("/:id", h.UpdateBook)
 		books.DELETE("/:id", h.DeleteBook)
 		books.GET("", h.Search)
-		books.GET("available", h.GetAvailable)
+		books.GET("/available", h.GetAvailable)
 	}
 	r.GET("/users/:id/books", h.GetByUserID)
 }
@@ -51,7 +50,6 @@ func (h *BookHandler) CreateBook(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusCreated, book)
 }
-
 
 func (h *BookHandler) GetBookByID(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -103,7 +101,6 @@ func (h *BookHandler) UpdateBook(ctx *gin.Context) {
 	ctx.IndentedJSON(http.StatusOK, mapBookToResponse(*book))
 }
 
-
 func (h *BookHandler) DeleteBook(ctx *gin.Context) {
 	bookID, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
@@ -135,7 +132,7 @@ func (h *BookHandler) DeleteBook(ctx *gin.Context) {
 func (h *BookHandler) Search(ctx *gin.Context) {
 	var query dto.BookListQuery
 	if err := ctx.ShouldBindQuery(&query); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Некорретный JSON"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Некорретные параметры"})
 		return
 	}
 
@@ -184,9 +181,9 @@ func (h *BookHandler) Search(ctx *gin.Context) {
 }
 
 func mapBookToResponse(b models.Book) dto.BookResponse {
-	owner := dto.UserPublicReponse{}
+	owner := dto.UserPublicResponse{}
 	if b.User != nil {
-		owner = dto.UserPublicReponse{
+		owner = dto.UserPublicResponse{
 			ID:   b.User.ID,
 			Name: b.User.Name,
 			City: b.User.City,
