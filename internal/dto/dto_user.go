@@ -1,5 +1,7 @@
 package dto
 
+import "time"
+
 type UserCreateRequest struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`
@@ -19,4 +21,13 @@ type UserUpdateRequest struct {
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+type UserProfileResponse struct {
+	ID                       uint      `json:"id"`
+	Name                     string    `json:"name"`
+	City                     string    `json:"city"`
+	RegisteredAt             time.Time `json:"registered_at"`
+	BooksCount               int64     `json:"books_count"`
+	SuccessfulExchangesCount int64     `json:"successful_exchanges_count"`
 }

@@ -19,16 +19,20 @@ type UserService interface {
 	UpdateUser(id uint, req dto.UserUpdateRequest) (*models.User, error)
 	ListUsers() ([]models.User, error)
 	DeleteUser(id uint) error
+	GetProfile(userID uint) (*dto.UserProfileResponse, error)
+	UpdateProfile(userID uint, req dto.UserUpdateRequest) error
 }
 
 type userService struct {
 	userRepo repository.UserRepository
+	bookRepo repository.BookRepository
 	log      *slog.Logger
 }
 
-func NewServiceUser(userRepo repository.UserRepository, log *slog.Logger) UserService {
+func NewServiceUser(userRepo repository.UserRepository, bookRepo repository.BookRepository, log *slog.Logger) UserService {
 	return &userService{
 		userRepo: userRepo,
+		bookRepo: bookRepo,
 		log:      log,
 	}
 }
@@ -123,6 +127,50 @@ func (s *userService) ListUsers() ([]models.User, error) {
 func (s *userService) DeleteUser(id uint) error {
 	if err := s.userRepo.Delete(id); err != nil {
 		return errors.New("ошибка удаления пользователя")
+	}
+	return nil
+}
+
+func (s *userService) GetProfile(userID uint) (*dto.UserProfileResponse, error) {
+	user, err := s.userRepo.GetByID(userID)
+	if err != nil {
+		return nil, repository.ErrUserNotFound
+	}
+
+	books, err := s.bookRepo.GetByUserID(userID, "")
+	if err != nil {
+		return nil, err
+	}
+
+	successfulExchanges := int64(0)
+
+	return &dto.UserProfileResponse{
+		ID:                       user.ID,
+		Name:                     user.Name,
+		City:                     user.City,
+		RegisteredAt:             user.RegisteredAt,
+		BooksCount:               int64(len(books)),
+		SuccessfulExchangesCount: successfulExchanges,
+	}, nil
+}
+
+func (s *userService) UpdateProfile(userID uint, req dto.UserUpdateRequest) error {
+	user, err := s.userRepo.GetByID(userID)
+	if err != nil {
+		return repository.ErrUserNotFound
+	}
+
+	if req.Name != nil {
+		user.Name = *req.Name
+	}
+	if req.City != nil {
+		user.City = *req.City
+	}
+	if req.Address != nil {
+		user.Address = *req.Address
+	}
+	if err := s.userRepo.Update(user); err != nil {
+		return errors.New("ошибка обновления профиля пользователя")
 	}
 	return nil
 }
