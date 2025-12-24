@@ -166,6 +166,17 @@ func GenerateAISummary(description string) (string, error) {
 }
 
 func (s *bookService) SearchBooks(query dto.BookListQuery) ([]models.Book, int64, error) {
+	if query.Page <= 0 {
+		query.Page = dto.DefaultPage
+	}
+
+	if query.Limit <= 0 {
+		query.Limit = dto.DefaultLimit
+	}
+
+	if query.Limit > dto.MaxLimit {
+		query.Limit = dto.MaxLimit
+	}
 	query.SortBy = strings.ToLower(strings.TrimSpace(query.SortBy))
 	query.SortOrder = strings.ToLower(strings.TrimSpace(query.SortOrder))
 

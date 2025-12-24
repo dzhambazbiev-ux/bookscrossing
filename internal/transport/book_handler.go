@@ -143,18 +143,6 @@ func (h *BookHandler) Search(ctx *gin.Context) {
 	query.SortOrder = strings.TrimSpace(query.SortOrder)
 	query.Title = strings.TrimSpace(query.Title)
 
-	if query.Page <= 0 {
-		query.Page = dto.DefaultPage
-	}
-
-	if query.Limit <= 0 {
-		query.Limit = dto.DefaultLimit
-	}
-
-	if query.Limit > dto.MaxLimit {
-		query.Limit = dto.MaxLimit
-	}
-
 	books, total, err := h.service.SearchBooks(query)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
