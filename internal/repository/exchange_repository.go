@@ -1,10 +1,10 @@
 package repository
 
 import (
-	"errors"
 	"log/slog"
 	"time"
 
+	"github.com/dasler-fw/bookcrossing/internal/dto"
 	"github.com/dasler-fw/bookcrossing/internal/models"
 	"gorm.io/gorm"
 )
@@ -33,7 +33,7 @@ func NewExchangeRepository(db *gorm.DB, log *slog.Logger) ExchangeRepository {
 func (r *exchangeRepository) CancelExchange(req *models.Exchange) error {
 	if req == nil {
 		r.log.Error("error in CancelExchange function exchange_repository.go")
-		return errors.New("error cancel exchange in db")
+		return dto.ErrExchangeCancelFailed
 	}
 
 	return r.db.Transaction(func(tx *gorm.DB) error {
@@ -56,7 +56,7 @@ func (r *exchangeRepository) CancelExchange(req *models.Exchange) error {
 func (r *exchangeRepository) CompleteExchange(req *models.Exchange) error {
 	if req == nil {
 		r.log.Error("error in CompleteExchange function exchange_repository.go")
-		return errors.New("error complete exchange in db")
+		return dto.ErrExchangeCompleteFailed
 	}
 
 	return r.db.Transaction(func(tx *gorm.DB) error {
@@ -90,18 +90,18 @@ func (r *exchangeRepository) CompleteExchange(req *models.Exchange) error {
 func (r *exchangeRepository) GetByID(id uint) (*models.Exchange, error) {
 	if id == 0 {
 		r.log.Error("error in GetByID function exchange_repository.go")
-		return nil, errors.New("error get exchange in db")
+		return nil, dto.ErrExchangeGetFailed
 	}
 
 	var exchange models.Exchange
 	if err := r.db.Where("id = ?", id).First(&exchange).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			r.log.Error("error in GetByID function exchange_repository.go", "error", err)
-			return nil, errors.New("exchange not found")
+			return nil, dto.ErrExchangeGetFailed
 		}
 
 		r.log.Error("error in GetByID function exchange_repository.go", "error", err)
-		return nil, errors.New("error get exchange in db")
+		return nil, dto.ErrExchangeGetFailed
 	}
 
 	return &exchange, nil
@@ -110,7 +110,7 @@ func (r *exchangeRepository) GetByID(id uint) (*models.Exchange, error) {
 func (r *exchangeRepository) CreateExchange(req *models.Exchange) error {
 	if req == nil {
 		r.log.Error("error in Create function exchange_repository.go")
-		return errors.New("error create exchange in db")
+		return dto.ErrExchangeCreateFailed
 	}
 
 	return r.db.Transaction(func(tx *gorm.DB) error {
@@ -133,7 +133,7 @@ func (r *exchangeRepository) CreateExchange(req *models.Exchange) error {
 func (r *exchangeRepository) Update(req *models.Exchange) error {
 	if req == nil {
 		r.log.Error("error in Update function book_repository.go")
-		return errors.New("error update in db")
+		return dto.ErrExchangeUpdateFailed
 	}
 
 	return r.db.Save(req).Error

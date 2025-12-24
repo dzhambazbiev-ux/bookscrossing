@@ -4,14 +4,9 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/dasler-fw/bookcrossing/internal/dto"
 	"github.com/dasler-fw/bookcrossing/internal/models"
 	"gorm.io/gorm"
-)
-
-var (
-	ErrNotFound     = errors.New("resource not found")
-	ErrConflict     = errors.New("resource already exists")
-	ErrInvalidInput = errors.New("invalid input")
 )
 
 type GenreRepository interface {
@@ -37,10 +32,10 @@ func NewGenreRepository(db *gorm.DB, log *slog.Logger) GenreRepository {
 func (r *genreRepository) Create(req *models.Genre) error {
 	if req == nil {
 		r.log.Error("genre is nil in Create")
-		return ErrInvalidInput
+		return dto.ErrInvalidInput
 	}
 	if existing, _ := r.GetByName(req.Name); existing != nil {
-		return ErrConflict
+		return dto.ErrConflict
 	}
 	return r.db.Create(req).Error
 }
@@ -50,7 +45,7 @@ func (r *genreRepository) GetByID(id uint) (*models.Genre, error) {
 
 	if err := r.db.First(&genre, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrNotFound
+			return nil, dto.ErrNotFound
 		}
 		r.log.Error("error in GetByID genre", "id", id, "err", err)
 		return nil, err
@@ -64,7 +59,7 @@ func (r *genreRepository) GetByName(name string) (*models.Genre, error) {
 
 	if err := r.db.Where("name = ?", name).First(&genre).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrNotFound
+			return nil, dto.ErrNotFound
 		}
 		r.log.Error("error in GetByName genre", "name", name, "err", err)
 		return nil, err
@@ -91,7 +86,7 @@ func (r *genreRepository) Delete(id uint) error {
 		return res.Error
 	}
 	if res.RowsAffected == 0 {
-		return ErrNotFound
+		return dto.ErrNotFound
 	}
 	return nil
 }

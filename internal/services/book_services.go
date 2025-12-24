@@ -98,7 +98,7 @@ func (s *bookService) Update(bookID uint, userID uint, req dto.UpdateBookRequest
 	}
 
 	if book.UserID != userID {
-		return nil, errors.New("только владелец может редактировать книгу")
+		return nil, dto.ErrBookForbidden
 	}
 
 	if req.Description != nil {
@@ -119,11 +119,11 @@ func (s *bookService) Delete(bookID uint, userID uint) error {
 	}
 
 	if book.UserID != userID {
-		return errors.New("нельзя удалить чужую книгу")
+		return dto.ErrBookForbidden
 	}
 
 	if book.Status == "pending" || book.Status == "accepted" {
-		return errors.New("нельзя удалить книгу, участвующую в обмене")
+		return dto.ErrBookInExchange
 	}
 
 	return s.bookRepo.Delete(bookID)
@@ -132,7 +132,7 @@ func (s *bookService) Delete(bookID uint, userID uint) error {
 func GenerateAISummary(description string) (string, error) {
 	apiKey := os.Getenv("GROK_API_KEY")
 	if apiKey == "" {
-		return "", errors.New("missing GROK_API_KEY in environment")
+		return "", dto.ErrAISummaryFailed
 	}
 
 	payload := map[string]string{

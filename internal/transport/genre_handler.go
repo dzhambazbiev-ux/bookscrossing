@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
-	"github.com/dasler-fw/bookcrossing/internal/repository"
 	"github.com/dasler-fw/bookcrossing/internal/services"
 	"github.com/gin-gonic/gin"
 )
@@ -39,10 +38,10 @@ func (h *GenreHandler) Create(c *gin.Context) {
 	if err != nil {
 		// map repository/service errors to HTTP codes
 		switch {
-		case errors.Is(err, repository.ErrInvalidInput):
+		case errors.Is(err, dto.ErrInvalidInput):
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
-		case errors.Is(err, repository.ErrConflict):
+		case errors.Is(err, dto.ErrConflict):
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		default:
@@ -81,13 +80,13 @@ func (h *GenreHandler) GetByID(c *gin.Context) {
 
 	g, err := h.service.GetByID(uint(id))
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+		if errors.Is(err, dto.ErrNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "genre not found"})
 			return
-		} else if errors.Is(err, repository.ErrInvalidInput) {
+		} else if errors.Is(err, dto.ErrInvalidInput) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
 			return
-		} else if errors.Is(err, repository.ErrConflict) {
+		} else if errors.Is(err, dto.ErrConflict) {
 			c.JSON(http.StatusConflict, gin.H{"error": "conflict"})
 			return
 		}
@@ -110,7 +109,7 @@ func (h *GenreHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(uint(id)); err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+		if errors.Is(err, dto.ErrNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "genre not found"})
 			return
 		}
