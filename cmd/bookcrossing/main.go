@@ -35,17 +35,26 @@ func main() {
 	reviewRepo := repository.NewReviewRepository(db, log)
 	exchangeRepo := repository.NewExchangeRepository(db, log)
 	bookRepo := repository.NewBookRepository(db, log)
+	userRepo := repository.NewUserRepository(db, log)
+	genreRepo := repository.NewGenreRepository(db, log)
 
 	exchangeService := services.NewExchangeService(exchangeRepo, bookRepo, log)
 	reviewService := services.NewReviewService(reviewRepo)
-
-	reviewHandler := transport.NewReviewHandler(reviewService)
-	exchangeHandler := transport.NewExchangeHandler(exchangeService)
+	bookService := services.NewServiceBook(bookRepo, log)
+	userService := services.NewServiceUser(userRepo, log)
+	genreService := services.NewGenreService(genreRepo)
 
 	httpServer := gin.Default()
 
-	reviewHandler.RegisterReviewRoutes(httpServer)
-	exchangeHandler.RegisterExchangeRoutes(httpServer)
+	transport.RegisterRoutes(
+		httpServer,
+		log,
+		bookService,
+		exchangeService,
+		genreService,
+		reviewService,
+		userService,
+	)
 
 	port := os.Getenv("PORT")
 	if port == "" {
