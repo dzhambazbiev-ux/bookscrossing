@@ -132,7 +132,7 @@ func (h *BookHandler) DeleteBook(ctx *gin.Context) {
 func (h *BookHandler) Search(ctx *gin.Context) {
 	var query dto.BookListQuery
 	if err := ctx.ShouldBindQuery(&query); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Некорретные параметры"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Некорркетные параметры"})
 		return
 	}
 
