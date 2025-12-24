@@ -46,8 +46,8 @@ func (r *bookRepository) Create(req *models.Book) error {
 func (r *bookRepository) GetByID(id uint) (*models.Book, error) {
 	var book models.Book
 	if err := r.db.Preload("Genres").Preload("User").First(&book, id).Error; err != nil {
-		r.log.Error("error in Delete function book_repository.go")
-		return nil, errors.New("error delete in db")
+		r.log.Error("error in GetByID book_repository.go", "id", id, "err", err)
+		return nil, errors.New("error getting book from db")
 	}
 
 	return &book, nil

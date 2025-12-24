@@ -2,7 +2,7 @@ package dto
 
 import "time"
 
-type UserPublicReponse struct {
+type UserPublicResponse struct {
 	ID   uint   `json:"id"`
 	Name string `json:"name"`
 	City string `json:"city"`
@@ -21,7 +21,7 @@ type BookResponse struct {
 	AISummary   string            `json:"ai_summary"`
 	Status      string            `json:"status"`
 	CreatedAt   time.Time         `json:"created_at"`
-	Owner       UserPublicReponse `json:"owner"`
+	Owner       UserPublicResponse `json:"owner"`
 	Genres      []GenreResponse   `json:"genres"`
 }
 
