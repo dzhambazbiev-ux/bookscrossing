@@ -137,18 +137,6 @@ func (r *bookRepository) Search(query dto.BookListQuery) ([]models.Book, int64, 
 		order = "DESC"
 	}
 
-	if query.Page <= 0 {
-		query.Page = dto.DefaultPage
-	}
-
-	if query.Limit <= 0 {
-		query.Limit = dto.DefaultLimit
-	}
-
-	if query.Limit > dto.MaxLimit {
-		query.Limit = dto.MaxLimit
-	}
-
 	offset := (query.Page - 1) * query.Limit
 
 	var books []models.Book
