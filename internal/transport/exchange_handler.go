@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
+	"github.com/dasler-fw/bookcrossing/internal/models"
 	"github.com/dasler-fw/bookcrossing/internal/services"
 	"github.com/gin-gonic/gin"
 )
@@ -61,12 +62,13 @@ func (h *ExchangeHandler) CreateExchange(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.exchangeService.CreateExchange(&req); err != nil {
+	exchange, err := h.exchangeService.CreateExchange(&req)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "Exchange created successfully"})
+	c.JSON(http.StatusCreated, mapExchangeToResponse(*exchange))
 }
 
 func (h *ExchangeHandler) AcceptExchange(c *gin.Context) {
@@ -82,4 +84,49 @@ func (h *ExchangeHandler) AcceptExchange(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Exchange accepted successfully"})
+}
+
+func (h *ExchangeHandler) GetByID(c *gin.Context) {
+	exchangeID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "некорректный id"})
+		return
+	}
+
+	exchange, err := h.exchangeService.GetByID(uint(exchangeID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, exchange)
+}
+
+func (h *ExchangeHandler) GetAll(c *gin.Context) {
+	exchanges, err := h.exchangeService.GetAll()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	response := make([]dto.ExchangeResponse, 0, len(exchanges))
+	for _, exchange := range exchanges {
+		response = append(response, mapExchangeToResponse(exchange))
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+func mapExchangeToResponse(e models.Exchange) dto.ExchangeResponse {
+	return dto.ExchangeResponse{
+		ID:              e.ID,
+		InitiatorID:     e.InitiatorID,
+		RecipientID:     e.RecipientID,
+		InitiatorBookID: e.InitiatorBookID,
+		RecipientBookID: e.RecipientBookID,
+		Status:          e.Status,
+		CompletedAt:     e.CompletedAt,
+		CreatedAt:       e.CreatedAt,
+		UpdatedAt:       e.UpdatedAt,
+	}
 }

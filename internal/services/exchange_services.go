@@ -10,10 +10,12 @@ import (
 )
 
 type ExchangeService interface {
-	CreateExchange(req *dto.CreateExchangeRequest) error
+	CreateExchange(req *dto.CreateExchangeRequest) (*models.Exchange, error)
 	AcceptExchange(exchangeID uint) error
 	CompleteExchange(exchangeID uint) error
 	CancelExchange(exchangeID uint) error
+	GetByID(exchangeID uint) (*models.Exchange, error)
+	GetAll() ([]models.Exchange, error)
 }
 
 type exchangeService struct {
@@ -93,10 +95,10 @@ func (s *exchangeService) AcceptExchange(exchangeID uint) error {
 	return s.exchangeRepo.Update(exchange)
 }
 
-func (s *exchangeService) CreateExchange(req *dto.CreateExchangeRequest) error {
+func (s *exchangeService) CreateExchange(req *dto.CreateExchangeRequest) (*models.Exchange, error) {
 	if req == nil {
 		s.log.Error("error in CreateExchange function exchange_services.go")
-		return errors.New("error create exchange in db")
+		return nil, errors.New("error create exchange in db")
 	}
 
 	exchange := &models.Exchange{
@@ -110,36 +112,39 @@ func (s *exchangeService) CreateExchange(req *dto.CreateExchangeRequest) error {
 	initiatorBook, err := s.bookRepo.GetByID(req.InitiatorBookID)
 	if err != nil {
 		s.log.Error("error in CreateExchange function exchange_services.go", "error", err)
-		return errors.New("error get initiator book")
+		return nil, errors.New("error get initiator book")
 	}
 
 	recipientBook, err := s.bookRepo.GetByID(req.RecipientBookID)
 	if err != nil {
 		s.log.Error("error in CreateExchange function exchange_services.go", "error", err)
-		return errors.New("error get recipient book")
+		return nil, errors.New("error get recipient book")
 	}
 
 	if err := s.CheckIsTheSameUser(initiatorBook.UserID, recipientBook.UserID); err != nil {
 		s.log.Error("error in CreateExchange function exchange_services.go", "error", err)
-		return err
+		return nil, err
 	}
 
 	if err := s.CheckInitiatorOwnsBook(req.InitiatorID, initiatorBook); err != nil {
 		s.log.Error("error in CreateExchange function exchange_services.go", "error", err)
-		return err
+		return nil, err
 	}
 
 	if err := s.CheckRecipientOwnsBook(req.RecipientID, recipientBook); err != nil {
 		s.log.Error("error in CreateExchange function exchange_services.go", "error", err)
-		return err
+		return nil, err
 	}
 
 	if err := s.CheckIsAvailable(initiatorBook, recipientBook); err != nil {
 		s.log.Error("error in CreateExchange function exchange_services.go", "error", err)
-		return err
+		return nil, err
+	}
+	if err := s.exchangeRepo.CreateExchange(exchange); err != nil {
+		return nil, err
 	}
 
-	return s.exchangeRepo.CreateExchange(exchange)
+	return exchange, nil
 }
 
 func (s *exchangeService) CheckInitiatorOwnsBook(initiatorID uint, initiatorBook *models.Book) error {
@@ -180,4 +185,12 @@ func (s *exchangeService) CheckIsAvailable(initiatorBook *models.Book, recipient
 	}
 
 	return nil
+}
+
+func (s *exchangeService) GetByID(exchangeID uint) (*models.Exchange, error) {
+	return s.exchangeRepo.GetByID(exchangeID)
+}
+
+func (s *exchangeService) GetAll() ([]models.Exchange, error) {
+	return s.exchangeRepo.GetAll()
 }

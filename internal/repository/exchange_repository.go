@@ -15,6 +15,7 @@ type ExchangeRepository interface {
 	CancelExchange(req *models.Exchange) error
 	Update(req *models.Exchange) error
 	GetByID(id uint) (*models.Exchange, error)
+	GetAll() ([]models.Exchange, error)
 }
 
 type exchangeRepository struct {
@@ -136,4 +137,13 @@ func (r *exchangeRepository) Update(req *models.Exchange) error {
 	}
 
 	return r.db.Save(req).Error
+}
+
+func (r *exchangeRepository) GetAll() ([]models.Exchange, error) {
+	var exchanges []models.Exchange
+	if err := r.db.Find(&exchanges).Error; err != nil {
+		r.log.Error("error in GetAll function exchange_repository.go", "error", err)
+		return nil, errors.New("error get exchanges from db")
+	}
+	return exchanges, nil
 }
