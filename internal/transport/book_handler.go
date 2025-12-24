@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
+	"github.com/dasler-fw/bookcrossing/internal/middleware"
 	"github.com/dasler-fw/bookcrossing/internal/models"
 	"github.com/dasler-fw/bookcrossing/internal/services"
 	"github.com/gin-gonic/gin"
@@ -23,13 +24,13 @@ func NewBookHandler(service services.BookService) *BookHandler {
 func (h *BookHandler) RegisterRoutes(r *gin.Engine) {
 	books := r.Group("/books")
 	{
-		books.POST("", h.CreateBook)
-		books.GET("/:id", h.GetBookByID)
-		books.GET("", h.GetBookList)
-		books.PATCH("/:id", h.UpdateBook)
-		books.DELETE("/:id", h.DeleteBook)
+		books.POST("", middleware.JWTAuth(), h.CreateBook)
 		books.GET("", h.Search)
-		books.GET("available", h.GetAvailable)
+		books.GET("/available", h.GetAvailable)
+		books.GET("/list", h.GetBookList)
+		books.GET("/:id", h.GetBookByID)
+		books.PATCH("/:id", middleware.JWTAuth(), h.UpdateBook)
+		books.DELETE("/:id", middleware.JWTAuth(), h.DeleteBook)
 	}
 	r.GET("/users/:id/books", h.GetByUserID)
 }
@@ -49,9 +50,8 @@ func (h *BookHandler) CreateBook(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, book)
+	ctx.JSON(http.StatusCreated, mapBookToResponse(*book))
 }
-
 
 func (h *BookHandler) GetBookByID(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -103,7 +103,6 @@ func (h *BookHandler) UpdateBook(ctx *gin.Context) {
 	ctx.IndentedJSON(http.StatusOK, mapBookToResponse(*book))
 }
 
-
 func (h *BookHandler) DeleteBook(ctx *gin.Context) {
 	bookID, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
@@ -113,19 +112,8 @@ func (h *BookHandler) DeleteBook(ctx *gin.Context) {
 
 	userID := ctx.GetUint("user_id")
 
-	book, err := h.service.GetByID(uint(bookID))
-	if err != nil {
-		ctx.IndentedJSON(http.StatusNotFound, gin.H{"error": "book not found"})
-		return
-	}
-
-	if book.UserID != userID {
-		ctx.IndentedJSON(http.StatusForbidden, gin.H{"error": "нельзя удалить чужую книгу"})
-		return
-	}
-
 	if err := h.service.Delete(uint(bookID), userID); err != nil {
-		ctx.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		ctx.IndentedJSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -135,7 +123,7 @@ func (h *BookHandler) DeleteBook(ctx *gin.Context) {
 func (h *BookHandler) Search(ctx *gin.Context) {
 	var query dto.BookListQuery
 	if err := ctx.ShouldBindQuery(&query); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Некорретный JSON"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Некорркетные параметры"})
 		return
 	}
 
@@ -145,18 +133,6 @@ func (h *BookHandler) Search(ctx *gin.Context) {
 	query.SortBy = strings.TrimSpace(query.SortBy)
 	query.SortOrder = strings.TrimSpace(query.SortOrder)
 	query.Title = strings.TrimSpace(query.Title)
-
-	if query.Page <= 0 {
-		query.Page = dto.DefaultPage
-	}
-
-	if query.Limit <= 0 {
-		query.Limit = dto.DefaultLimit
-	}
-
-	if query.Limit > dto.MaxLimit {
-		query.Limit = dto.MaxLimit
-	}
 
 	books, total, err := h.service.SearchBooks(query)
 	if err != nil {
@@ -184,9 +160,9 @@ func (h *BookHandler) Search(ctx *gin.Context) {
 }
 
 func mapBookToResponse(b models.Book) dto.BookResponse {
-	owner := dto.UserPublicReponse{}
+	owner := dto.UserPublicResponse{}
 	if b.User != nil {
-		owner = dto.UserPublicReponse{
+		owner = dto.UserPublicResponse{
 			ID:   b.User.ID,
 			Name: b.User.Name,
 			City: b.User.City,

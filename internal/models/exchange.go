@@ -12,11 +12,10 @@ type Exchange struct {
 	RecipientID     uint       `json:"recipient_id"`
 	InitiatorBookID uint       `json:"initiator_book_id"`
 	RecipientBookID uint       `json:"recipient_book_id"`
-	Status          string     `json:"status"`
-	CreatedAt       time.Time  `json:"created_at"`
+	Status          string     `json:"status" gorm:"enum:pending,accepted,completed,cancelled"`
 	CompletedAt     *time.Time `json:"completed_at"`
 
-  Initiator *User `json:"initiator" gorm:"foreignKey:InitiatorID"`
+	Initiator *User `json:"initiator" gorm:"foreignKey:InitiatorID"`
 	Recipient *User `json:"recipient" gorm:"foreignKey:RecipientID"`
 
 	InitiatorBook *Book `json:"initiator_book" gorm:"foreignKey:InitiatorBookID"`

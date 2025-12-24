@@ -7,8 +7,9 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtSecret = []byte(os.Getenv("SUPER_SECRET_KEY")) // потом в env
-
+func getSecret()[]byte{
+	return []byte(os.Getenv("SUPER_SECRET_KEY"))
+}
 type Claims struct {
 	UserID uint `json:"user_id"`
 	jwt.RegisteredClaims
@@ -24,7 +25,7 @@ func GenerateToken(userID uint) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
+	return token.SignedString(getSecret())
 }
 
 func ParseToken(tokenStr string) (*Claims, error) {
@@ -32,7 +33,7 @@ func ParseToken(tokenStr string) (*Claims, error) {
 		tokenStr,
 		&Claims{},
 		func(token *jwt.Token) (interface{}, error) {
-			return jwtSecret, nil
+			return getSecret(), nil
 		},
 	)
 	if err != nil {

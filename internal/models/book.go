@@ -8,7 +8,7 @@ type Book struct {
 	Author      string `json:"author"`
 	Description string `json:"description"`
 	AISummary   string `json:"aisummary"`
-	Status      string `json:"status"`
+	Status      string `json:"status" gorm:"enum:available,reserved"`
 	UserID      uint   `json:"user_id"`
 
 	User   *User   `json:"user" gorm:"foreignKey:UserID"`
