@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
 	"github.com/dasler-fw/bookcrossing/internal/models"
@@ -127,18 +130,24 @@ func (s *bookService) Delete(bookID uint, userID uint) error {
 }
 
 func GenerateAISummary(description string) (string, error) {
-	apiKey := "GROK_API_KEY"
+	apiKey := os.Getenv("GROK_API_KEY")
+	if apiKey == "" {
+		return "", errors.New("missing GROK_API_KEY in environment")
+	}
 
 	payload := map[string]string{
 		"prompt": "Сделай краткое резюме книги: " + description,
 	}
 
 	body, _ := json.Marshal(payload)
-	req, _ := http.NewRequest("POST", "https://api.grok.ai/v1/completions", bytes.NewBuffer(body))
+	req, err := http.NewRequest("POST", "https://api.grok.ai/v1/completions", bytes.NewBuffer(body))
+	if err != nil {
+		return "", err
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
@@ -148,12 +157,17 @@ func GenerateAISummary(description string) (string, error) {
 		return "", err
 	}
 
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return "", errors.New("grok api error: " + string(b))
+	}
+
 	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	dec := json.NewDecoder(io.LimitReader(resp.Body, 10*1024)) // limit 10KB
+	if err := dec.Decode(&result); err != nil {
 		return "", err
 	}
 
-	// пример, как получить текст из ответа
 	if choices, ok := result["choices"].([]interface{}); ok && len(choices) > 0 {
 		if choice, ok := choices[0].(map[string]interface{}); ok {
 			if text, ok := choice["text"].(string); ok {
@@ -162,7 +176,12 @@ func GenerateAISummary(description string) (string, error) {
 		}
 	}
 
-	return "", nil
+	// fallback: если структура другая — попытаться найти "text" или "message"
+	if t, ok := result["text"].(string); ok && t != "" {
+		return t, nil
+	}
+
+	return "", errors.New("empty summary from AI")
 }
 
 func (s *bookService) SearchBooks(query dto.BookListQuery) ([]models.Book, int64, error) {

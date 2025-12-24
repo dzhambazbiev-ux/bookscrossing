@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
+	"github.com/dasler-fw/bookcrossing/internal/middleware"
 	"github.com/dasler-fw/bookcrossing/internal/models"
 	"github.com/dasler-fw/bookcrossing/internal/services"
 	"github.com/gin-gonic/gin"
@@ -23,12 +24,13 @@ func NewBookHandler(service services.BookService) *BookHandler {
 func (h *BookHandler) RegisterRoutes(r *gin.Engine) {
 	books := r.Group("/books")
 	{
-		books.POST("", h.CreateBook)
-		books.GET("/:id", h.GetBookByID)
-		books.PATCH("/:id", h.UpdateBook)
-		books.DELETE("/:id", h.DeleteBook)
+		books.POST("", middleware.JWTAuth(), h.CreateBook)
 		books.GET("", h.Search)
 		books.GET("/available", h.GetAvailable)
+		books.GET("/list", h.GetBookList)
+		books.GET("/:id", h.GetBookByID)
+		books.PATCH("/:id", middleware.JWTAuth(), h.UpdateBook)
+		books.DELETE("/:id", middleware.JWTAuth(), h.DeleteBook)
 	}
 	r.GET("/users/:id/books", h.GetByUserID)
 }
@@ -48,7 +50,7 @@ func (h *BookHandler) CreateBook(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, book)
+	ctx.JSON(http.StatusCreated, mapBookToResponse(*book))
 }
 
 func (h *BookHandler) GetBookByID(ctx *gin.Context) {
@@ -110,19 +112,8 @@ func (h *BookHandler) DeleteBook(ctx *gin.Context) {
 
 	userID := ctx.GetUint("user_id")
 
-	book, err := h.service.GetByID(uint(bookID))
-	if err != nil {
-		ctx.IndentedJSON(http.StatusNotFound, gin.H{"error": "book not found"})
-		return
-	}
-
-	if book.UserID != userID {
-		ctx.IndentedJSON(http.StatusForbidden, gin.H{"error": "нельзя удалить чужую книгу"})
-		return
-	}
-
 	if err := h.service.Delete(uint(bookID), userID); err != nil {
-		ctx.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		ctx.IndentedJSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
