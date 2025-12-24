@@ -1,0 +1,14 @@
+#!/bin/bash
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT"
+
+go run ./scripts/ai-precommit.go
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "Коммит отменен из-за найденных проблем."
+    exit 1
+fi
+
+exit 0
