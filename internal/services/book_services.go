@@ -126,7 +126,6 @@ func (s *bookService) Delete(bookID uint, userID uint) error {
 	return s.bookRepo.Delete(bookID)
 }
 
-
 func GenerateAISummary(description string) (string, error) {
 	apiKey := "GROK_API_KEY"
 
@@ -144,7 +143,10 @@ func GenerateAISummary(description string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+
+	if err := resp.Body.Close(); err != nil {
+		return "", err
+	}
 
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {

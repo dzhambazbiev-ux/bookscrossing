@@ -30,15 +30,22 @@ func main() {
 		os.Exit(1)
 	}
 
+	log.Info("migrations completed")
+
 	reviewRepo := repository.NewReviewRepository(db, log)
+	exchangeRepo := repository.NewExchangeRepository(db, log)
+	bookRepo := repository.NewBookRepository(db, log)
+
+	exchangeService := services.NewExchangeService(exchangeRepo, bookRepo, log)
 	reviewService := services.NewReviewService(reviewRepo)
 
-	log.Info("migrations completed")
+	reviewHandler := transport.NewReviewHandler(reviewService)
+	exchangeHandler := transport.NewExchangeHandler(exchangeService)
 
 	httpServer := gin.Default()
 
-	reviewHandler := transport.NewReviewHandler(reviewService)
 	reviewHandler.RegisterReviewRoutes(httpServer)
+	exchangeHandler.RegisterExchangeRoutes(httpServer)
 
 	port := os.Getenv("PORT")
 	if port == "" {
