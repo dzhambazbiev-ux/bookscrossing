@@ -52,7 +52,6 @@ func (h *BookHandler) CreateBook(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, book)
 }
 
-
 func (h *BookHandler) GetBookByID(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
@@ -102,7 +101,6 @@ func (h *BookHandler) UpdateBook(ctx *gin.Context) {
 
 	ctx.IndentedJSON(http.StatusOK, mapBookToResponse(*book))
 }
-
 
 func (h *BookHandler) DeleteBook(ctx *gin.Context) {
 	bookID, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
