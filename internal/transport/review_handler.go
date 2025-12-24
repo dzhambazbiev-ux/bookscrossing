@@ -34,7 +34,7 @@ func (h *ReviewHandler) Create(c *gin.Context) {
 		return
 	}
 
-	authorID, ok := c.Get("userID")
+	authorID, ok := c.Get("user_id")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": "unauthorized",
