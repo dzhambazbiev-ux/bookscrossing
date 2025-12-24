@@ -1,9 +1,9 @@
 package repository
 
 import (
-	"errors"
 	"log/slog"
 
+	"github.com/dasler-fw/bookcrossing/internal/dto"
 	"github.com/dasler-fw/bookcrossing/internal/models"
 	"gorm.io/gorm"
 )
@@ -31,7 +31,7 @@ func NewReviewRepository(db *gorm.DB, log *slog.Logger) ReviewRepository {
 func (r *reviewRepository) Create(req *models.Review) error {
 	if req == nil {
 		r.log.Error("error in create review")
-		return errors.New("error create review")
+		return dto.ErrReviewCreateFail
 	}
 	return r.db.Create(req).Error
 }
@@ -41,7 +41,7 @@ func (r *reviewRepository) GetByID(id uint) (*models.Review, error) {
 
 	if err := r.db.First(&reviews, id).Error; err != nil {
 		r.log.Error("error in GetByID review")
-		return nil, errors.New("review not found")
+		return nil, dto.ErrReviewNotFound
 	}
 	return &reviews, nil
 }
@@ -49,7 +49,7 @@ func (r *reviewRepository) GetByID(id uint) (*models.Review, error) {
 func (r *reviewRepository) Delete(id uint) error {
 	if err := r.db.Delete(&models.Review{}, id).Error; err != nil {
 		r.log.Error("error in Delete review")
-		return errors.New("error delete review")
+		return dto.ErrReviewDeleteFail
 	}
 
 	return nil

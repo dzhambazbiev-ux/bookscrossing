@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/dasler-fw/bookcrossing/internal/dto"
 	"github.com/dasler-fw/bookcrossing/internal/models"
 	"gorm.io/gorm"
 )
@@ -34,7 +35,7 @@ func NewUserRepository(db *gorm.DB, log *slog.Logger) UserRepository {
 func (r *userRepository) Create(user *models.User) error {
 	if user == nil {
 		r.log.Error("ошибка создания профиля")
-		return errors.New("пустой пользователь")
+		return dto.ErrUserCreateFailed
 	}
 	return r.db.Create(user).Error
 }
@@ -48,7 +49,7 @@ func (r *userRepository) GetByID(id uint) (*models.User, error) {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrUserNotFound
 		}
-		return nil, errors.New("ошибка базы данных")
+		return nil, dto.ErrUserGetFailed
 	}
 	return &user, nil
 
@@ -57,7 +58,7 @@ func (r *userRepository) GetByID(id uint) (*models.User, error) {
 func (r *userRepository) Update(user *models.User) error {
 	if user == nil || user.ID == 0 {
 		r.log.Error("ошибка обновления: пустой профиль или отсутствует ID")
-		return errors.New("некорректный пользователь для обновления")
+		return dto.ErrUserUpdateFailed
 	}
 
 	return r.db.Save(user).Error
@@ -72,7 +73,7 @@ func (r *userRepository) GetByEmail(email string) (*models.User, error) {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrUserNotFound
 		}
-		return nil, errors.New("ошибка базы данных")
+		return nil, dto.ErrUserGetFailed
 	}
 	return &user, nil
 }
@@ -81,14 +82,14 @@ func (r *userRepository) List() ([]models.User, error) {
 	var users []models.User
 	if err := r.db.Find(&users).Error; err != nil {
 		r.log.Error("ошибка получения списка пользователей")
-		return nil, errors.New("не удалось получить список пользователей")
+		return nil, dto.ErrUserGetFailed
 	}
 	return users, nil
 }
 func (r *userRepository) Delete(id uint) error {
 	if err := r.db.Delete(&models.User{}, id).Error; err != nil {
 		r.log.Error("ошибка удаления профиля")
-		return errors.New("не удалось удалить пользователя")
+		return dto.ErrUserDeleteFailed
 	}
 	return nil
 }

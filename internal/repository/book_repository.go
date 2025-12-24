@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"errors"
 	"log/slog"
 	"strings"
 
@@ -37,7 +36,7 @@ func NewBookRepository(db *gorm.DB, log *slog.Logger) BookRepository {
 func (r *bookRepository) Create(req *models.Book) error {
 	if req == nil {
 		r.log.Error("error in Create function book_repository.go")
-		return errors.New("error create category in db")
+		return dto.ErrBookCreateFailed
 	}
 
 	return r.db.Create(req).Error
@@ -47,7 +46,7 @@ func (r *bookRepository) GetByID(id uint) (*models.Book, error) {
 	var book models.Book
 	if err := r.db.Preload("Genres").Preload("User").First(&book, id).Error; err != nil {
 		r.log.Error("error in GetByID book_repository.go", "id", id, "err", err)
-		return nil, errors.New("error getting book from db")
+		return nil, dto.ErrBookGetFailed
 	}
 
 	return &book, nil
@@ -66,7 +65,7 @@ func (r *bookRepository) GetList() ([]models.Book, error) {
 func (r *bookRepository) Update(book *models.Book) error {
 	if book == nil {
 		r.log.Error("error in Update function book_repository.go")
-		return errors.New("error update in db")
+		return dto.ErrBookUpdateFailed
 	}
 
 	return r.db.Save(book).Error
@@ -75,7 +74,7 @@ func (r *bookRepository) Update(book *models.Book) error {
 func (r *bookRepository) Delete(id uint) error {
 	if err := r.db.Delete(&models.Book{}, id).Error; err != nil {
 		r.log.Error("error in Delete function book_repository.go")
-		return errors.New("error delete in db")
+		return dto.ErrBookDeleteFailed
 	}
 
 	return nil

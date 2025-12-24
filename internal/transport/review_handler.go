@@ -20,7 +20,7 @@ func NewReviewHandler(service services.ReviewService) *ReviewHandler {
 }
 
 func (h *ReviewHandler) RegisterReviewRoutes(r *gin.Engine) {
-	r.POST("/review", middleware.JWTAuth(), h.Create)
+	r.POST("/review",middleware.JWTAuth(), h.Create)
 	r.DELETE("/review/:id",middleware.JWTAuth(), h.Delete)
 	r.GET("/users/:id/review", h.GetByUser)
 	r.GET("/book/:id/review", h.GetByBook)

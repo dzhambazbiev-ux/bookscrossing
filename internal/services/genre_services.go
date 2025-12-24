@@ -27,7 +27,7 @@ func (s *genreService) Create(req dto.GenreCreateRequest) (*models.Genre, error)
 	name := strings.TrimSpace(req.Name)
 
 	if name == "" {
-		return nil, repository.ErrInvalidInput
+		return nil, dto.ErrInvalidInput
 	}
 
 	genre := &models.Genre{

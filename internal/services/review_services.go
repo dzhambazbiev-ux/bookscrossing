@@ -27,13 +27,9 @@ func NewReviewService(repo repository.ReviewRepository) ReviewService {
 func (s *reviewService) Create(authorID uint, req dto.CreateReviewRequest) error {
 	trimmedText := strings.TrimSpace(req.Text)
 
-	// if trimmedText == "" {
-	// 	return errors.New("review text is required")
-	// }
-
 	length := len([]rune(trimmedText))
 	if length < 10 || length > 150 {
-		return errors.New("review text must be between 10 and 150 characters")
+		return dto.ErrReviewTextLength
 	}
 
 	if strings.TrimSpace(req.Text) == "" {
@@ -41,11 +37,11 @@ func (s *reviewService) Create(authorID uint, req dto.CreateReviewRequest) error
 	}
 
 	if req.Rating < 1 || req.Rating > 5 {
-		return errors.New("rating must be between 1 and 5")
+		return dto.ErrInvalidRating
 	}
 
 	if req.TargetUserID == authorID {
-		return errors.New("cannot leave review to yourself")
+		return dto.ErrSelfReviewForbidden
 	}
 
 	review := models.Review{
@@ -73,7 +69,7 @@ func (s *reviewService) Delete(reviewID uint, authorID uint) error {
 	}
 
 	if review.AuthorID != authorID {
-		return errors.New("you are not allowed to delete this review")
+		return dto.ErrReviewDeleteForbidden
 	}
 	return s.repo.Delete(reviewID)
 }
