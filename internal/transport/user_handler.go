@@ -23,9 +23,9 @@ func (h *UserHandler) RegisterRoutes(r *gin.Engine) {
 	{
 		users.POST("/register", h.Register)
 		users.POST("/login", h.Login)
-		users.GET("/:id", h.GetProfile)
+		users.GET("/:id",middleware.JWTAuth(), h.GetProfile)
 		users.PATCH("/:id", middleware.JWTAuth(), h.UpdateProfile)
-		users.GET("/:id/exchanges", h.GetUserExchanges)
+		users.GET("/:id/exchanges",middleware.JWTAuth(), h.GetUserExchanges)
 
 	}
 
