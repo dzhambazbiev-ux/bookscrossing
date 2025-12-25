@@ -39,9 +39,26 @@ var (
 	ErrAISummaryFailed  = errors.New("failed to generate ai summary")
 
 	// Review Service errors
+	ErrExchangeInvalidID   = errors.New("invalid exchange id")
+	ErrExchangeNotPending  = errors.New("exchange is not pending")
+	ErrExchangeNotAccepted = errors.New("exchange is not accepted")
+	ErrInitiatorNotOwner   = errors.New("initiator does not own the book")
+	ErrRecipientNotOwner   = errors.New("recipient does not own the book")
+	ErrUnavailable         = errors.New("initiator book is unavailable")
+	ErrRUnavailable        = errors.New("recipient book is unavailable")
+
 	ErrReviewTextRequired    = errors.New("review text is required")
 	ErrReviewTextLength      = errors.New("review text must be between 10 and 150 characters")
 	ErrInvalidRating         = errors.New("rating must be between 1 and 5")
 	ErrSelfReviewForbidden   = errors.New("cannot leave review to yourself")
 	ErrReviewDeleteForbidden = errors.New("you are not allowed to delete this review")
+
+	ErrEmailAlreadyUsed        = errors.New("email already in use")
+	ErrInvalidCredentials      = errors.New("invalid credentials")
+	ErrUserProfileFailed       = errors.New("failed to get user profile")
+	ErrUserExchangesFailed     = errors.New("failed to get user exchanges")
+	ErrUserProfileUpdateFailed = errors.New("failed to update user profile")
+	ErrUserListFailed          = errors.New("failed to list users")
+	ErrUserProfileStatsFailed  = errors.New("failed to calculate user profile stats")
+	ErrUserPasswordHashFailed  = errors.New("failed to hash password")
 )
