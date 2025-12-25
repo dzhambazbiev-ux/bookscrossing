@@ -106,9 +106,10 @@ func (r *bookRepository) Search(query dto.BookListQuery) ([]models.Book, int64, 
 	}
 
 	var total int64
-	if err := db.Session(&gorm.Session{}).
-		Distinct("books.id").
-		Count(&total).Error; err != nil {
+	countQuery := db.Session(&gorm.Session{}).
+		Select("COUNT(DISTINCT books.id)")
+
+	if err := countQuery.Scan(&total).Error; err != nil {
 		r.log.Error("ошибка считывании книг", "err", err)
 		return nil, 0, err
 	}
@@ -140,13 +141,17 @@ func (r *bookRepository) Search(query dto.BookListQuery) ([]models.Book, int64, 
 
 	var books []models.Book
 
-	if err := db.Session(&gorm.Session{}).
-		Distinct("books.id").
+	subQuery := db.Session(&gorm.Session{}).
+		Select("books.id", sortField).
+		Distinct("books.id", sortField).
+		Order(sortField + " " + order).
+		Limit(query.Limit).
+		Offset(offset)
+
+	if err := db.Where("books.id IN (SELECT books.id FROM (?) AS sorted_books)", subQuery).
 		Preload("Genres").
 		Preload("User").
 		Order(sortField + " " + order).
-		Limit(query.Limit).
-		Offset(offset).
 		Find(&books).Error; err != nil {
 		r.log.Error("ошибка при поиске книг", "err", err)
 		return nil, 0, err
