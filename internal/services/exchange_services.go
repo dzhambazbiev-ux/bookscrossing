@@ -31,20 +31,20 @@ func NewExchangeService(exchangeRepo repository.ExchangeRepository, bookRepo rep
 func (s *exchangeService) CancelExchange(exchangeID uint) error {
 	if exchangeID == 0 {
 		s.log.Error("error in CancelExchange function exchange_services.go")
-		return errors.New("error cancel exchange in db")
+		return dto.ErrExchangeInvalidID
 	}
 
 	exchange, err := s.exchangeRepo.GetByID(exchangeID)
 	if err != nil {
 		s.log.Error("error in CancelExchange function exchange_services.go", "error", err)
-		return errors.New("error get exchange")
+		return err
 	}
 
 	// todo: check if the current user is the initiator, after the auth handler is implemented
 
 	if exchange.Status != "pending" {
 		s.log.Error("error in CancelExchange function exchange_services.go", "error", errors.New("exchange is not pending"))
-		return errors.New("exchange is not pending")
+		return dto.ErrExchangeNotPending
 	}
 
 	return s.exchangeRepo.CancelExchange(exchange)
@@ -53,20 +53,20 @@ func (s *exchangeService) CancelExchange(exchangeID uint) error {
 func (s *exchangeService) CompleteExchange(exchangeID uint) error {
 	if exchangeID == 0 {
 		s.log.Error("error in CompleteExchange function exchange_services.go")
-		return errors.New("error complete exchange in db")
+		return dto.ErrExchangeInvalidID
 	}
 
 	exchange, err := s.exchangeRepo.GetByID(exchangeID)
 	if err != nil {
 		s.log.Error("error in CompleteExchange function exchange_services.go", "error", err)
-		return errors.New("error get exchange")
+		return err
 	}
 
 	// todo: check if the current user is the initiator or the recipient, after the auth handler is implemented
 
 	if exchange.Status != "accepted" {
 		s.log.Error("error in CompleteExchange function exchange_services.go", "error", errors.New("exchange is not accepted"))
-		return errors.New("exchange is not accepted")
+		return dto.ErrExchangeNotAccepted
 	}
 
 	return s.exchangeRepo.CompleteExchange(exchange)
@@ -75,20 +75,20 @@ func (s *exchangeService) CompleteExchange(exchangeID uint) error {
 func (s *exchangeService) AcceptExchange(exchangeID uint) error {
 	if exchangeID == 0 {
 		s.log.Error("error in AcceptExchange function exchange_services.go")
-		return errors.New("error accept exchange in db")
+		return dto.ErrExchangeInvalidID
 	}
 
 	exchange, err := s.exchangeRepo.GetByID(exchangeID)
 	if err != nil {
 		s.log.Error("error in AcceptExchange function exchange_services.go", "error", err)
-		return errors.New("error get exchange")
+		return err
 	}
 
 	// todo: check if the current user is the recipient, after the auth handler is implemented
 
 	if exchange.Status != "pending" {
 		s.log.Error("error in AcceptExchange function exchange_services.go", "error", errors.New("exchange is not pending"))
-		return errors.New("exchange is not pending")
+		return dto.ErrExchangeNotPending
 	}
 
 	exchange.Status = "accepted"
@@ -98,7 +98,7 @@ func (s *exchangeService) AcceptExchange(exchangeID uint) error {
 func (s *exchangeService) CreateExchange(req *dto.CreateExchangeRequest) (*models.Exchange, error) {
 	if req == nil {
 		s.log.Error("error in CreateExchange function exchange_services.go")
-		return nil, errors.New("error create exchange in db")
+		return nil, dto.ErrExchangeInvalidID
 	}
 
 	exchange := &models.Exchange{
@@ -112,13 +112,13 @@ func (s *exchangeService) CreateExchange(req *dto.CreateExchangeRequest) (*model
 	initiatorBook, err := s.bookRepo.GetByID(req.InitiatorBookID)
 	if err != nil {
 		s.log.Error("error in CreateExchange function exchange_services.go", "error", err)
-		return nil, errors.New("error get initiator book")
+		return nil, err
 	}
 
 	recipientBook, err := s.bookRepo.GetByID(req.RecipientBookID)
 	if err != nil {
 		s.log.Error("error in CreateExchange function exchange_services.go", "error", err)
-		return nil, errors.New("error get recipient book")
+		return nil, err
 	}
 
 	if err := s.CheckIsTheSameUser(initiatorBook.UserID, recipientBook.UserID); err != nil {
@@ -150,7 +150,7 @@ func (s *exchangeService) CreateExchange(req *dto.CreateExchangeRequest) (*model
 func (s *exchangeService) CheckInitiatorOwnsBook(initiatorID uint, initiatorBook *models.Book) error {
 	if initiatorID != initiatorBook.UserID {
 		s.log.Error("error in CreateExchange function exchange_services.go", "error", errors.New("initiator does not own the book"))
-		return errors.New("initiator does not own the book")
+		return dto.ErrInitiatorNotOwner
 	}
 
 	return nil
@@ -159,7 +159,7 @@ func (s *exchangeService) CheckInitiatorOwnsBook(initiatorID uint, initiatorBook
 func (s *exchangeService) CheckRecipientOwnsBook(recipientID uint, recipientBook *models.Book) error {
 	if recipientID != recipientBook.UserID {
 		s.log.Error("error in CreateExchange function exchange_services.go", "error", errors.New("recipient does not own the book"))
-		return errors.New("recipient does not own the book")
+		return dto.ErrRecipientNotOwner
 	}
 
 	return nil
@@ -176,12 +176,12 @@ func (s *exchangeService) CheckIsTheSameUser(initiatorID uint, recipientID uint)
 func (s *exchangeService) CheckIsAvailable(initiatorBook *models.Book, recipientBook *models.Book) error {
 	if initiatorBook.Status != "available" {
 		s.log.Error("error in CreateExchange function exchange_services.go", "error", errors.New("initiator book is unavailable"))
-		return errors.New("initiator book is unavailable")
+		return dto.ErrUnavailable
 	}
 
 	if recipientBook.Status != "available" {
 		s.log.Error("error in CreateExchange function exchange_services.go", "error", errors.New("recipient book is unavailable"))
-		return errors.New("recipient book is unavailable")
+		return dto.ErrRUnavailable
 	}
 
 	return nil
