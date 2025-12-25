@@ -41,7 +41,7 @@ func main() {
 	exchangeService := services.NewExchangeService(exchangeRepo, bookRepo, log)
 	reviewService := services.NewReviewService(reviewRepo)
 	bookService := services.NewServiceBook(bookRepo, log)
-	userService := services.NewServiceUser(userRepo, log)
+	userService := services.NewServiceUser(db, userRepo, bookRepo, log)
 	genreService := services.NewGenreService(genreRepo)
 
 	httpServer := gin.Default()
