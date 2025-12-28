@@ -55,6 +55,12 @@ func (c *TTLCache[K, V]) Set(key K, val V) {
 	c.mu.Unlock()
 }
 
+func (c *TTLCache[K, V]) Clear() {
+	c.mu.Lock()
+	clear(c.items)
+	c.mu.Unlock()
+}
+
 func (c *TTLCache[K, V]) Len() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()

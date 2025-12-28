@@ -49,6 +49,11 @@ func NewServiceBook(bookRepo repository.BookRepository, log *slog.Logger) BookSe
 	return svc
 }
 
+func (s *bookService) invalidateListCache() {
+	s.listCache.Clear()
+	s.log.Info("cache invalidated", "cache", "books:list")
+}
+
 func (s *bookService) CreateBook(userID uint, req dto.CreateBookRequest) (*models.Book, error) {
 	book := &models.Book{
 		Title:       req.Title,
@@ -81,6 +86,7 @@ func (s *bookService) CreateBook(userID uint, req dto.CreateBookRequest) (*model
 		}
 	}
 
+	s.invalidateListCache()
 	return book, nil
 }
 
@@ -129,6 +135,7 @@ func (s *bookService) Update(bookID uint, userID uint, req dto.UpdateBookRequest
 		return nil, err
 	}
 
+	s.invalidateListCache()
 	return book, nil
 }
 
@@ -146,7 +153,12 @@ func (s *bookService) Delete(bookID uint, userID uint) error {
 		return dto.ErrBookInExchange
 	}
 
-	return s.bookRepo.Delete(bookID)
+	if err := s.bookRepo.Delete(bookID); err != nil {
+		return err
+	}
+
+	s.invalidateListCache()
+	return nil
 }
 
 func GenerateAISummary(description string) (string, error) {
