@@ -2,11 +2,15 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
+	"strings"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 func Connect(logger *slog.Logger) *gorm.DB {
@@ -20,7 +24,21 @@ func Connect(logger *slog.Logger) *gorm.DB {
 	dsn := fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=%v sslmode=%v",
 		dbHost, dbUser, dbPass, dbName, dbPort, dbMode)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	level := gormlogger.Warn
+	if strings.ToLower(os.Getenv("LOG_LEVEL")) == "debug" {
+		level = gormlogger.Info
+	}
+
+	gormLogger := gormlogger.New(
+		log.New(os.Stdout, "", log.LstdFlags),
+		gormlogger.Config{
+			SlowThreshold:             200 * time.Millisecond,
+			LogLevel:                  level,
+			IgnoreRecordNotFoundError: true,
+		},
+	)
+
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: gormLogger})
 
 	if err != nil {
 		logger.Error("failed to connect", "error", err)

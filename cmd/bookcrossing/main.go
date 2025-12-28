@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/dasler-fw/bookcrossing/internal/config"
+	"github.com/dasler-fw/bookcrossing/internal/middleware"
 	"github.com/dasler-fw/bookcrossing/internal/models"
 	"github.com/dasler-fw/bookcrossing/internal/repository"
 	"github.com/dasler-fw/bookcrossing/internal/services"
@@ -44,7 +45,9 @@ func main() {
 	userService := services.NewServiceUser(db, userRepo, bookRepo, log)
 	genreService := services.NewGenreService(genreRepo)
 
-	httpServer := gin.Default()
+	httpServer := gin.New()
+	httpServer.Use(gin.Recovery())
+	httpServer.Use(middleware.RequestLogger(log))
 
 	transport.RegisterRoutes(
 		httpServer,

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dasler-fw/bookcrossing/internal/cache"
 	"github.com/dasler-fw/bookcrossing/internal/dto"
 	"github.com/dasler-fw/bookcrossing/internal/models"
 	"github.com/dasler-fw/bookcrossing/internal/repository"
@@ -19,7 +21,7 @@ import (
 type BookService interface {
 	CreateBook(userID uint, ras dto.CreateBookRequest) (*models.Book, error)
 	GetByID(id uint) (*models.Book, error)
-	GetList() ([]models.Book, error)
+	GetList(limit, offset int) ([]models.Book, error)
 	Update(bookID uint, userID uint, req dto.UpdateBookRequest) (*models.Book, error)
 	Delete(bookID uint, userID uint) error
 	SearchBooks(query dto.BookListQuery) ([]models.Book, int64, error)
@@ -28,14 +30,16 @@ type BookService interface {
 }
 
 type bookService struct {
-	bookRepo repository.BookRepository
-	log      *slog.Logger
+	bookRepo  repository.BookRepository
+	log       *slog.Logger
+	listCache *cache.TTLCache[string, []models.Book]
 }
 
 func NewServiceBook(bookRepo repository.BookRepository, log *slog.Logger) BookService {
 	return &bookService{
-		bookRepo: bookRepo,
-		log:      log,
+		bookRepo:  bookRepo,
+		log:       log,
+		listCache: cache.NewTTLCache[string, []models.Book](10 * time.Second),
 	}
 }
 
@@ -83,11 +87,21 @@ func (s *bookService) GetByID(id uint) (*models.Book, error) {
 	return book, nil
 }
 
-func (s *bookService) GetList() ([]models.Book, error) {
-	list, err := s.bookRepo.GetList()
+func (s *bookService) GetList(limit, offset int) ([]models.Book, error) {
+	key := fmt.Sprintf("books:list:l=%d:o=%d", limit, offset)
+	if v, ok := s.listCache.Get(key); ok {
+		s.log.Info("cache hit", "key", key)
+		return v, nil
+	}
+
+	s.log.Info("cache miss", "key", key)
+
+	list, err := s.bookRepo.GetList(limit, offset)
 	if err != nil {
 		return nil, err
 	}
+
+	s.listCache.Set(key, list)
 	return list, nil
 }
 

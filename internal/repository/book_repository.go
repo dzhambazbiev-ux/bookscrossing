@@ -11,7 +11,7 @@ import (
 
 type BookRepository interface {
 	Create(req *models.Book) error
-	GetList() ([]models.Book, error)
+	GetList(limit, offset int) ([]models.Book, error)
 	GetByID(id uint) (*models.Book, error)
 	Update(book *models.Book) error
 	Delete(id uint) error
@@ -52,10 +52,13 @@ func (r *bookRepository) GetByID(id uint) (*models.Book, error) {
 	return &book, nil
 }
 
-func (r *bookRepository) GetList() ([]models.Book, error) {
+func (r *bookRepository) GetList(limit, offset int) ([]models.Book, error) {
 	var list []models.Book
-	if err := r.db.Preload("Genres").Find(&list).Error; err != nil {
-		r.log.Error("error in List function book_repository.go")
+	if err := r.db.Preload("Genres").
+		Limit(limit).
+		Offset(offset).
+		Find(&list).Error; err != nil {
+		r.log.Error("error in GetList book_repository.go", "err", err)
 		return nil, err
 	}
 

@@ -70,8 +70,36 @@ func (h *BookHandler) GetBookByID(ctx *gin.Context) {
 }
 
 func (h *BookHandler) GetBookList(ctx *gin.Context) {
-	list, err := h.service.GetList()
+	limit := 50
+	offset := 0
+
+	if v := ctx.Query("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			limit = n
+		}
+	}
+
+	if v := ctx.Query("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			offset = n
+		}
+	}
+
+	if limit < 1 {
+		limit = 50
+	}
+
+	if limit > 200 {
+		limit = 200
+	}
+
+	if offset < 0 {
+		offset = 0
+	}
+
+	list, err := h.service.GetList(limit, offset)
 	if err != nil {
+		ctx.Error(err) // чтобы ошибка попала в request-лог
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get books"})
 		return
 	}
