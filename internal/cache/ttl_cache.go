@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -52,4 +53,44 @@ func (c *TTLCache[K, V]) Set(key K, val V) {
 		hasValue: true,
 	}
 	c.mu.Unlock()
+}
+
+func (c *TTLCache[K, V]) Len() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return len(c.items)
+}
+
+func (c *TTLCache[K, V]) StartJanitor(ctx context.Context, interval time.Duration, onSweep func(removed int, size int)) {
+	if interval <= 0 {
+		interval = 1 * time.Second
+	}
+
+	t := time.NewTicker(interval)
+
+	go func() {
+		defer t.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				now := time.Now()
+				removed := 0
+				c.mu.Lock()
+				for k, it := range c.items {
+					if it.hasValue && now.After(it.expires) {
+						delete(c.items, k)
+						removed++
+					}
+				}
+				size := len(c.items)
+				c.mu.Unlock()
+				if onSweep != nil && removed > 0 {
+					onSweep(removed, size)
+				}
+			}
+		}
+	}()
 }

@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,11 +37,16 @@ type bookService struct {
 }
 
 func NewServiceBook(bookRepo repository.BookRepository, log *slog.Logger) BookService {
-	return &bookService{
+	svc := &bookService{
 		bookRepo:  bookRepo,
 		log:       log,
 		listCache: cache.NewTTLCache[string, []models.Book](10 * time.Second),
 	}
+
+	svc.listCache.StartJanitor(context.Background(), 2*time.Second, func(removed int, size int) {
+		log.Info("cache sweep", "removed", removed, "size", size)
+	})
+	return svc
 }
 
 func (s *bookService) CreateBook(userID uint, req dto.CreateBookRequest) (*models.Book, error) {
