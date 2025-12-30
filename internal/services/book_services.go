@@ -13,10 +13,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dasler-fw/bookcrossing/internal/cache"
 	"github.com/dasler-fw/bookcrossing/internal/dto"
 	"github.com/dasler-fw/bookcrossing/internal/models"
 	"github.com/dasler-fw/bookcrossing/internal/repository"
+	"github.com/redis/go-redis/v9"
+)
+
+const (
+	redisTimeout = 80 * time.Millisecond
+	listTTL      = 10 * time.Second
 )
 
 type BookService interface {
@@ -31,27 +36,33 @@ type BookService interface {
 }
 
 type bookService struct {
-	bookRepo  repository.BookRepository
-	log       *slog.Logger
-	listCache *cache.TTLCache[string, []models.Book]
+	bookRepo repository.BookRepository
+	log      *slog.Logger
+	rdb      *redis.Client
 }
 
-func NewServiceBook(bookRepo repository.BookRepository, log *slog.Logger) BookService {
+func NewServiceBook(bookRepo repository.BookRepository, log *slog.Logger, rdb *redis.Client) BookService {
 	svc := &bookService{
-		bookRepo:  bookRepo,
-		log:       log,
-		listCache: cache.NewTTLCache[string, []models.Book](10 * time.Second),
+		bookRepo: bookRepo,
+		log:      log,
+		rdb:      rdb,
 	}
 
-	svc.listCache.StartJanitor(context.Background(), 2*time.Second, func(removed int, size int) {
-		log.Info("cache sweep", "removed", removed, "size", size)
-	})
 	return svc
 }
 
 func (s *bookService) invalidateListCache() {
-	s.listCache.Clear()
-	s.log.Info("cache invalidated", "cache", "books:list")
+	if s.rdb == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	if err := s.rdb.Incr(ctx, "books:list:ver").Err(); err != nil {
+		s.log.Error("cache invalidation failed", "error", err)
+		return
+	}
+	s.log.Info("cache invalidated", "cache", "books:list", "method", "version bump")
 }
 
 func (s *bookService) CreateBook(userID uint, req dto.CreateBookRequest) (*models.Book, error) {
@@ -100,20 +111,68 @@ func (s *bookService) GetByID(id uint) (*models.Book, error) {
 }
 
 func (s *bookService) GetList(limit, offset int) ([]models.Book, error) {
-	key := fmt.Sprintf("books:list:l=%d:o=%d", limit, offset)
-	if v, ok := s.listCache.Get(key); ok {
-		s.log.Info("cache hit", "key", key)
-		return v, nil
+	//  Готовим контекст с таймаутом для Redis
+	redisCtx, redisCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer redisCancel()
+
+	// Читаем "версию" списка (если ключа нет — считаем 0)
+	ver, err := s.rdb.Get(redisCtx, "books:list:ver").Int64()
+	if err != nil && err != redis.Nil {
+		s.log.Error("redis get version failed", "error", err)
+		ver = 0
 	}
 
-	s.log.Info("cache miss", "key", key)
+	s.log.Info("list cache version", "ver", ver)
 
+	// Ключ кэша включает версию + limit/offset
+	key := fmt.Sprintf("books:list:v=%d:l=%d:o=%d", ver, limit, offset)
+
+	// Пробуем взять из кэша
+	cached, err := s.rdb.Get(redisCtx, key).Bytes()
+	if err == nil {
+		var list []models.Book
+		if err := json.Unmarshal(cached, &list); err == nil {
+			s.log.Info("cache hit", "key", key)
+			return list, nil
+		}
+		s.log.Error("cache unmarshal failed", "key", key, "error", err)
+		// если JSON битый — идём в БД как будто кэша нет
+	} else if err == redis.Nil {
+		//s.log.Error("cache get failed", "key", key, "error", err)
+		s.log.Info("cache miss", "key", key)
+		// если Redis глючит — идём в БД как будто кэша нет
+	} else {
+		s.log.Warn("cache get failed", "key", key, "error", err)
+		//s.log.Info("cache miss", "key", key)
+	}
+
+	// Идем в БД
 	list, err := s.bookRepo.GetList(limit, offset)
 	if err != nil {
 		return nil, err
 	}
 
-	s.listCache.Set(key, list)
+	// Пытаемся сохранить в кэш (best-effort)
+	// b, err := json.Marshal(list)
+	// if err == nil {
+	// 	_ = s.rdb.Set(redisCtx, key, b, listTTL).Err()
+	// } else {
+	// 	s.log.Error("cache marshal failed", "error", err)
+	// }
+
+	b, err := json.Marshal(list)
+	if err != nil {
+		s.log.Error("cache marshal failed", "error", err)
+		return list, nil
+	}
+
+	setCtx, setCancel := context.WithTimeout(context.Background(), redisTimeout)
+	defer setCancel()
+
+	if err := s.rdb.Set(setCtx, key, b, listTTL).Err(); err != nil {
+		s.log.Warn("cache set failed", "key", key, "error", err)
+	}
+
 	return list, nil
 }
 

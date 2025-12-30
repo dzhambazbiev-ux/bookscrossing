@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/dasler-fw/bookcrossing/internal/config"
 	"github.com/dasler-fw/bookcrossing/internal/middleware"
@@ -11,12 +13,26 @@ import (
 	"github.com/dasler-fw/bookcrossing/internal/services"
 	"github.com/dasler-fw/bookcrossing/internal/transport"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
 	log := config.InitLogger()
 
 	config.SetEnv(log)
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr: os.Getenv("REDIS_ADDR"),
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	if err := rdb.Ping(ctx).Err(); err != nil {
+		log.Error("redis ping failed", "err", err)
+	} else {
+		log.Info("redis ping ok")
+	}
 
 	db := config.Connect(log)
 
@@ -41,7 +57,7 @@ func main() {
 
 	exchangeService := services.NewExchangeService(exchangeRepo, bookRepo, log)
 	reviewService := services.NewReviewService(reviewRepo)
-	bookService := services.NewServiceBook(bookRepo, log)
+	bookService := services.NewServiceBook(bookRepo, log, rdb)
 	userService := services.NewServiceUser(db, userRepo, bookRepo, log)
 	genreService := services.NewGenreService(genreRepo)
 
