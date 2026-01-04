@@ -150,8 +150,24 @@ func (h *BookHandler) DeleteBook(ctx *gin.Context) {
 
 func (h *BookHandler) Search(ctx *gin.Context) {
 	var query dto.BookListQuery
+
+	if pageStr := ctx.Param("page"); pageStr != "" {
+		if page, err := strconv.Atoi(strings.TrimSpace(pageStr)); err == nil {
+			query.Page = page
+		}
+	}
+
+	if limitStr := ctx.Param("limit"); limitStr != "" {
+		if limit, err := strconv.Atoi(strings.TrimSpace(limitStr)); err == nil {
+			query.Limit = limit
+		}
+	}
+
 	if err := ctx.ShouldBindQuery(&query); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Некорркетные параметры"})
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Некорркетные параметры",
+			"details": err.Error(),
+		})
 		return
 	}
 

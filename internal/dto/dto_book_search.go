@@ -22,5 +22,5 @@ type BookListQuery struct {
 const (
 	DefaultPage  = 1
 	DefaultLimit = 10
-	MaxLimit     = 100
+	MaxLimit     = 5000
 )

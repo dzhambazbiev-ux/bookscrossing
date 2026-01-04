@@ -16,7 +16,7 @@ type UserRepository interface {
 	GetByID(id uint) (*models.User, error)
 	Update(user *models.User) error
 	GetByEmail(email string) (*models.User, error)
-	List() ([]models.User, error)
+	List(limit, offset int) ([]models.User, error)
 	Delete(id uint) error
 }
 
@@ -78,9 +78,12 @@ func (r *userRepository) GetByEmail(email string) (*models.User, error) {
 	return &user, nil
 }
 
-func (r *userRepository) List() ([]models.User, error) {
+func (r *userRepository) List(limit, offset int) ([]models.User, error) {
 	var users []models.User
-	if err := r.db.Find(&users).Error; err != nil {
+	if err := r.db.
+		Offset(offset).
+		Limit(limit).
+		Find(&users).Error; err != nil {
 		r.log.Error("ошибка получения списка пользователей")
 		return nil, dto.ErrUserGetFailed
 	}

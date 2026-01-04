@@ -144,17 +144,15 @@ func (r *bookRepository) Search(query dto.BookListQuery) ([]models.Book, int64, 
 
 	var books []models.Book
 
-	subQuery := db.Session(&gorm.Session{}).
-		Select("books.id", sortField).
-		Distinct("books.id", sortField).
+	queryDB := db.Session(&gorm.Session{}).
+		Select("DISTINCT books.*").
 		Order(sortField + " " + order).
 		Limit(query.Limit).
 		Offset(offset)
 
-	if err := db.Where("books.id IN (SELECT books.id FROM (?) AS sorted_books)", subQuery).
+	if err := queryDB.
 		Preload("Genres").
 		Preload("User").
-		Order(sortField + " " + order).
 		Find(&books).Error; err != nil {
 		r.log.Error("ошибка при поиске книг", "err", err)
 		return nil, 0, err

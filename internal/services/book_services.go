@@ -3,6 +3,8 @@ package services
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +24,7 @@ import (
 const (
 	redisTimeout = 80 * time.Millisecond
 	listTTL      = 10 * time.Second
+	searchTTL    = 10 * time.Second
 )
 
 type BookService interface {
@@ -298,7 +301,85 @@ func (s *bookService) SearchBooks(query dto.BookListQuery) ([]models.Book, int64
 		query.SortOrder = "desc"
 	}
 
-	return s.bookRepo.Search(query)
+	var cacheKey string
+
+	if s.rdb != nil {
+		redisCtx, redisCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		defer redisCancel()
+
+		ver, err := s.rdb.Get(redisCtx, "books:list:ver").Int64()
+		if err != nil && err != redis.Nil {
+			s.log.Error("redis get version failed", "error", err)
+			ver = 0
+		}
+
+		// Делаем короткий стабильный ключ:
+		// 1) JSON от query (после нормализации)
+		// 2) sha256 хэш (чтобы ключ не был длинным)
+		qb, err := json.Marshal(query)
+		if err != nil {
+			s.log.Warn("cache key marshal failed", "error", err)
+		} else {
+			sum := sha256.Sum256(qb)
+			qHash := hex.EncodeToString(sum[:])
+			cacheKey = fmt.Sprintf("books:search:v=%d:%s", ver, qHash)
+
+			// Пробуем взять из кэша
+			cached, err := s.rdb.Get(redisCtx, cacheKey).Bytes()
+			if err == nil {
+				// В кэше держим и список книг, и total (общее количество)
+				var payload struct {
+					Books []models.Book `json:"books"`
+					Total int64         `json:"total"`
+				}
+
+				if err := json.Unmarshal(cached, &payload); err == nil {
+					s.log.Info("cache hit", "key", cacheKey)
+					return payload.Books, payload.Total, nil
+				}
+
+				s.log.Error("cache unmarshal failed", "key", cacheKey, "error", err)
+
+				// если JSON битый — просто идём в БД
+			} else if err == redis.Nil {
+				s.log.Info("cache miss", "key", cached)
+			} else {
+				s.log.Warn("cache get failed", "key", cacheKey, "error", err)
+			}
+		}
+	}
+
+	// Идем в БД
+	books, total, err := s.bookRepo.Search(query)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Пытаемся сохранить в кэш (best-effort)
+	if s.rdb != nil && cacheKey != "" {
+		payload := struct {
+			Books []models.Book `json:"books"`
+			Total int64         `json:"total"`
+		}{
+			Books: books,
+			Total: total,
+		}
+
+		b, err := json.Marshal(payload)
+		if err != nil {
+			s.log.Error("cache marshal failed", "key", cacheKey, "error", err)
+			return books, total, nil
+		}
+
+		setCtx, setCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		defer setCancel()
+
+		if err := s.rdb.Set(setCtx, cacheKey, b, searchTTL).Err(); err != nil {
+			s.log.Warn("cache set failed", "key", cacheKey, "error", err)
+		}
+	}
+
+	return books, total, nil
 }
 
 func (s *bookService) GetBooksByUserID(userID uint, status string) ([]models.Book, error) {

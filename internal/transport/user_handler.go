@@ -22,10 +22,11 @@ func (h *UserHandler) RegisterRoutes(r *gin.Engine) {
 	users := r.Group("/users")
 	{
 		users.POST("/register", h.Register)
+		users.GET("", h.GetList)
 		users.POST("/login", h.Login)
-		users.GET("/:id",middleware.JWTAuth(), h.GetProfile)
+		users.GET("/:id", middleware.JWTAuth(), h.GetProfile)
 		users.PATCH("/:id", middleware.JWTAuth(), h.UpdateProfile)
-		users.GET("/:id/exchanges",middleware.JWTAuth(), h.GetUserExchanges)
+		users.GET("/:id/exchanges", middleware.JWTAuth(), h.GetUserExchanges)
 
 	}
 
@@ -147,4 +148,35 @@ func (h *UserHandler) GetUserExchanges(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, exchanges)
+}
+
+func (h *UserHandler) GetList(c *gin.Context) {
+	limit := 0
+	offset := 0
+
+	var err error
+
+	if limitStr := c.Query("limit"); limitStr != "" {
+		limit, err = strconv.Atoi(limitStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "некорректные параметры"})
+			return
+		}
+	}
+
+	if offsetStr := c.Query("offset"); offsetStr != "" {
+		offset, err = strconv.Atoi(offsetStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "некорректный параметр"})
+			return
+		}
+	}
+
+	users, err := h.userServ.ListUsers(limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, users)
 }
