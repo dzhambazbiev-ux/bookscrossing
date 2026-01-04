@@ -1,12 +1,17 @@
 package services
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/dasler-fw/bookcrossing/internal/dto"
 	"github.com/dasler-fw/bookcrossing/internal/jwtutil"
 	"github.com/dasler-fw/bookcrossing/internal/models"
 	"github.com/dasler-fw/bookcrossing/internal/repository"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -16,7 +21,7 @@ type UserService interface {
 	Login(req dto.LoginRequest) (string, error)
 	GetUserByID(id uint) (*models.User, error)
 	UpdateUser(id uint, req dto.UserUpdateRequest) (*models.User, error)
-	ListUsers() ([]models.User, error)
+	ListUsers(limit, offset int) ([]models.User, error)
 	DeleteUser(id uint) error
 	GetProfile(userID uint) (*dto.UserProfileResponse, error)
 	UpdateProfile(userID uint, req dto.UserUpdateRequest) error
@@ -28,15 +33,33 @@ type userService struct {
 	userRepo repository.UserRepository
 	bookRepo repository.BookRepository
 	log      *slog.Logger
+	rdb      *redis.Client
 }
 
-func NewServiceUser(db *gorm.DB, userRepo repository.UserRepository, bookRepo repository.BookRepository, log *slog.Logger) UserService {
+func NewServiceUser(db *gorm.DB, userRepo repository.UserRepository, bookRepo repository.BookRepository, log *slog.Logger, rdb *redis.Client) UserService {
 	return &userService{
 		db:       db,
 		userRepo: userRepo,
 		bookRepo: bookRepo,
 		log:      log,
+		rdb:      rdb,
 	}
+}
+
+func (s *userService) InvalidateUserList() {
+	if s.rdb == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	if err := s.rdb.Incr(ctx, "users:list:ver").Err(); err != nil {
+		s.log.Error("user cache invalidation failed", "error", err)
+		return
+	}
+
+	s.log.Info("user cache invalidated", "cache", "users:list", "method", "version bump")
 }
 
 func (s *userService) Register(req dto.UserCreateRequest) (string, error) {
@@ -120,14 +143,70 @@ func (s *userService) UpdateUser(id uint, req dto.UserUpdateRequest) (*models.Us
 	if err := s.userRepo.Update(user); err != nil {
 		return nil, dto.ErrUserUpdateFailed
 	}
+
+	s.InvalidateUserList()
 	return user, nil
 }
 
-func (s *userService) ListUsers() ([]models.User, error) {
-	users, err := s.userRepo.List()
+func (s *userService) ListUsers(limit, offset int) ([]models.User, error) {
+
+	if limit <= 0 {
+		limit = dto.DefaultLimit
+	}
+
+	if limit > dto.MaxLimit {
+		limit = dto.MaxLimit
+	}
+
+	if offset <= 0 {
+		offset = 0
+	}
+
+	redisCtx, redisCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer redisCancel()
+
+	ver, err := s.rdb.Get(redisCtx, "users:list:ver").Int64()
+	if err != nil && err != redis.Nil {
+		s.log.Error("redis get version in users list failed", "error", err)
+		ver = 0
+	}
+
+	s.log.Info("user list cache version", "ver", ver)
+
+	key := fmt.Sprintf("users:list:v=%d:l=%d:o:=%d", ver, limit, offset)
+
+	cached, err := s.rdb.Get(redisCtx, key).Bytes()
+	if err == nil {
+		var userList []models.User
+		if err := json.Unmarshal(cached, &userList); err == nil {
+			s.log.Info("user cache hit", "key", key)
+			return userList, nil
+		}
+		s.log.Error("user cache unmarshal failed", "key", key, "error", err)
+	} else if err == redis.Nil {
+		s.log.Info("user cache miss", "key", key)
+	} else {
+		s.log.Warn("user cache get failed", "key", key, "error", err)
+	}
+
+	users, err := s.userRepo.List(limit, offset)
 	if err != nil {
 		return nil, dto.ErrUserListFailed
 	}
+
+	b, err := json.Marshal(users)
+	if err != nil {
+		s.log.Error("user cache marshal failed", "error", err)
+		return users, nil
+	}
+
+	setCtx, setCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer setCancel()
+
+	if err := s.rdb.Set(setCtx, key, b, 10*time.Second); err != nil {
+		s.log.Warn("user cache set failed", "key", key, "error", err)
+	}
+
 	return users, nil
 }
 
